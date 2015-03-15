@@ -43,11 +43,7 @@ create table titles(
  t_id serial primary key,
  t_title varchar(20) not null);
 
-create type sex as enum('m', 'f', 'h', 'n');
-
--- colour combination: n not, y possible, o obligatory
---create type colcombine as enum('n','y','o');
--- obs this in favour of bit null 0 1, obsoleting this type
+create type sex as enum('m', 'f', 'h', 'n', 'n/a');
 
 create table markups(
  m_id serial primary key,
@@ -55,13 +51,13 @@ create table markups(
  m_rate numeric(4,3) not null,
  m_obs boolean not null default FALSE);
 
-/* service type: other med serv good food cons hist
+-- product type: med other serv cons hist good food
 create table ptypes(
  pt_id serial primary key,
  pt_name varchar(20) not null,
- pt_markup integer not null references markups default 1);*/
+ pt_markup integer not null references markups default 1);
 
-create type ptype as enum('vac','con','hst','med','srv','god','fod','oth');
+-- create type ptype as enum('con','hst','med','vac','srv','god','fod','oth');
 
 create table addresses(
  addr_id serial primary key,
@@ -192,7 +188,7 @@ create table chronics(
 
 create table patients(
  p_id serial primary key,
- p_name varchar(80) not null, -- hierwei
+ p_name varchar(80) not null,
  p_cid integer references clients not null,
  breed integer references breeds,
  xbreed boolean not null default False,
@@ -215,27 +211,29 @@ create table patients(
 create index p_name_idx on patients(p_name);
 
 -- maybe redundance, but i think eases search for patient seen some date:
-create table seen(seen_pid integer references patients, seen_date date);
+create table seen(
+ seen_pid integer not null references patients, 
+ seen_date date not null);
 
 create index seen_pid_idx on seen(seen_pid);
 
 create table neuts(
- neut_id integer references patients not null,
+ neut_id integer not null references patients,
  neut_date date);
 
 create table rips(
- rip_id integer references patients not null,
+ rip_id integer not null references patients,
  rip_date timestamp not null);
 
-create table ownerhistory(
+create table ownerhist(
  oh_id serial primary key,
- oh_pid int references patients not null,
- oh_prev int references clients not null,
+ oh_pid int not null references patients,
+ oh_prev int not null references clients,
  oh_date date not null);
 
-create table namehistory(
+create table namehist(
  nh_id serial primary key,
- nh_pid int references patients not null,
+ nh_pid int not null references patients,
  nh_name varchar(80) not null default '',
  nh_date date not null);
 
@@ -292,7 +290,7 @@ create table products(
  pr_name varchar(80) not null,
  pr_short varchar(10) not null,
 -- pr_type integer references ptypes not null default 1, -- srv, med, good etc.
- pr_type ptype not null default 'med',
+ pr_type int not null references ptypes default 1,
  pr_pprice numeric(8,2) not null default 0.00, -- net purchase price
  pr_nprice numeric(8,2) not null, -- net sale price
  pr_from date not null default '2010-01-01',
@@ -330,13 +328,15 @@ create table pr_supplier(
  prordid varchar(100));
 ****************/
 
-/*create table prodoldprices( -- more efficient than obsoleting old prodprices
+create table pricehist( -- more efficient than obsoleting old prodprices
  pop_id serial primary key,
  pop_prid integer not null references products,
  pop_npr numeric(8,2) not null,
  pop_vat integer not null references vats,
- pop_fromdate date not null);
+ pop_todate date not null,
+ pop_reason varchar(100) not null default '');
 
+/*
 create table toorder(o_prid integer not null references products, o_date date);
 **************/
 
@@ -368,11 +368,11 @@ create table symptoms(
  symptom varchar(80) not null,
  sy_short varchar(5) not null);
 
-create table applications( -- link product to service: a injectable->injection
+create table applications(
  app_id serial primary key,
  app_keyword varchar(20) not null);
 
-create table app2prod(
+create table app2prod( -- link product to service: a injectable->injection
  a2p_prid integer references products primary key,
  a2p_prod integer references applications not null);
 
@@ -391,11 +391,16 @@ create table wd_apps( -- wd dependent on app type and/or dosage
  wda_app varchar(8),
  wda_dosage varchar(120));*/
 
-create table invoices(inv_id serial primary key,inv_no integer not null unique);
+create table invoices( -- hierwei
+ inv_id serial primary key,
+ inv_branch int not null references branches,
+ inv_no integer not null);
 -- cave 0er Jahre: select length(n::text)<10 -> +0
+-- wie invoicen?
 
 create table appointments(
  app_id serial primary key,
+ app_branch int not null references branches,
  app_dt timestamp not null,
  app_text varchar(128) not null,
  app_cid integer references clients,
@@ -404,32 +409,58 @@ create table appointments(
  app_dur interval not null default '0:00',
  app_status char not null default 'o');
 
-/* tables created by application on demand:
-accN:    account client N
-	 acc_id acc_pid acc_prid acc_npr acc_vat acc_paid
-	 ## invno: int->invoices.invoice_id
-	 # pid: patient.p_id
-	 # acc_prid int->medN.id
-	 # net price, vat
-	 # acc_paid: paydate
-invN:    invoice for client N
-         inv_no price vat amount
-weightN: weight entries for patient N
-vacN:    registers vacc, date and due -- yes some redundancy
----
-eN:	 id: consid to coordinate entries in following tables
-chN:   	 actual clinical history i.e. findings
-       	 id consid dt text symp staff seq
-	 # seq to order ch|med|inst in case of stopped timer:
-	 # 1st cons from medN, 2nd history from chN, further from medN again
-prodN:	 booked products -- was medN
-       	 id consid dt type (serv med good other ...) txt (int->products.pr_id)
-	 count symp staff seq
-instN: 	 instructions for medication
-       	 id text prodid (int->medN.id)
-*/
+create table events(e_id serial primary key,e_pid int references patients);
 
--- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid integer references clients not null, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));
+-- hierwei  da ist ein Loch, wenn nicht cid auch in events bei event ohne pid!
+-- oder wir geben dann ein null ein und holen cid von acc?
+create table prods(
+ prod_id serial primary key,
+ prod_consid int not null references events,
+ prod_prid int not null references products,
+ prod_count numeric(9,2) not null default 1,
+ prod_dt timestamp not null,
+ prod_symp int references symptoms,
+ prod_staff int references staff);
+
+create table clinhists(
+ ch_id serial primary key,
+ ch_consid int not null references events,
+ ch_dt timestamp not null,
+ ch_text varchar(1024),
+ ch_symp int not null references symptoms,
+ ch_staff int not null references staff);
+
+create table accs(
+ acc_id serial primary key,
+ acc_branch int not null references branches,
+ acc_cid int not null references clients,
+ acc_prid int references prods,
+ acc_npr numeric(9,2) not null,
+ acc_vat int references vats
+ acc_inv int references invoices);
+
+create table insts(
+ in_id serial primary key,
+ in_text varchar(300) not null default '',
+ in_prodid integer not null references prods);
+
+create table weights(
+ w_id serial primary key,
+ w_pid int not null references patients,
+ w_dt timestamp not null default current_timestamp,
+ w_est bool not null default false,
+ w_weight numeric(7,3)not null,
+ w_staff int not null references staff);
+
+create table vaccs(
+ v_id serial primary key,
+ v_pid int not null references patients,
+ v_used int not null references vaccinations,
+ v_dt date not null,
+ v_due date not null);
+
+ -- hierwei
+-- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid integer not null references clients, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));
 -- de: 'Bar', 'Kontokarte', 'Kreditkarte', 'Scheck', 'Überweisung', 'Einzug'
 
 -- create type statem_env as enum ('Invoice','Receipt','Letter','Statement');
@@ -440,35 +471,8 @@ instN: 	 instructions for medication
 
 -- delivery?
 
--- appointments? queues?
--- create table queues(q_id serial primary key, q_name varchar(80) not null);
--- create table apps(app_id serial primary key, a_queue smallint references queus not null, a_staff integer references staff not null, a_datetime timestamp not null, a_duration smallint not null /* minutes */, a_pid integer references patients, a_cid integer references clients not null, a_anno varchar(80) not null default '');
-
-
---##################
---# RECONSIDER THESE
---##################
--- waiting(WaitId integer primary key, ArrivedOrder smallint not null, WaitingDateTime timestamp not null, WaitingPId int not null, WaitingBookedTime enum('5','10','15','20','30','45','60','90','120') not null, WaitingForStaff smallint not null, WaitingForServ smallint not null, WaitingComment varchar(50) not null, WaitingStatus enum('w','s','d','p','f')/*waiting served done payment finished*/ not null);
-
---##################
---### IN THE BINARY:
---##################
--- patient vaccs:
--- create table vacN(
---  v_id serial primary key,
---  vvacid integer references vaccinations not null,
---  vdate timestamp not null,
---  vdue date not null);
-
--- product action, special price for certain period:
--- create table pactions(pa_id serial primary key, pa_prid integer references products not null, pa_name varchar(80) not null default '', pa_red numeric(3,3) not null, pa_start date not null, pa_end date not null);
-
--- change of ownership:
--- create table ownerchange(oc_id serial primary key, oc_pid integer references patients not null, oc_fowner integer references clients not null, oc_date date not null);
-
 -- create table orderTIMESTAMP(o_id serial primary key, ono varchar(15) not null, oprid integer references products not null, ogprice numeric(6,2) not null, ogvat integer references vats not null, ogamount numeric(6,3) not null, ogdate date not null, osentdate date not null, ogreceived date/*?*/ not null, ogpaid date not null);
 
 -- journals from present data.
 -- archives:older 2a  waiting invoices?  receipts?
-
--- consider statistics about products/goods/services per time period
+-- statistics about products/goods/services per time period

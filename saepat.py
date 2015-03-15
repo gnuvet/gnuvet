@@ -1713,7 +1713,7 @@ class Saepat(QMainWindow):
                 str(self.w.pnameLe.text().toLatin1()), True)) + "'"
             result = querydb(
                 self,
-                'select nh_pid,nh_name,nh_date from namehistory where '
+                'select nh_pid,nh_name,nh_date from namehist where '
                 'nh_name ilike %s', (wildcard(prep_txt(
                     str(self.w.pnameLe.text().toLatin1()))),))
             if result is None:  return # db error

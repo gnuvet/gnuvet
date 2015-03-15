@@ -38,13 +38,13 @@ defaults = {
     'usestock': False,
     'usesymp': True,
     # clinhist colours
-    'oth_col': 'darkRed',
+    'other_col': 'darkRed',
     'med_col':   'darkBlue',
-    'srv_col':  'darkGreen',
-    'god_col':  'darkMagenta',
-    'fod_col':  'darkYellow',
-    'con_col':  'darkCyan',
-    'hst_col':  'black',
+    'serv_col':  'darkGreen',
+    'good_col':  'darkMagenta',
+    'food_col':  'darkYellow',
+    'cons_col':  'darkCyan',
+    'hist_col':  'black',
     # alternatively always use black (delete or comment out above options)
     # and setAlternatingRowColors()
     'vaccwarn':  7, # days before due to start warn
