@@ -78,40 +78,40 @@ insert into basecolours values
  (35,'tortoiseshell','0',2),(36,'white','0',0),(37,'dark','1',0),
  (38,'light','1',0),(39,'chocolate','0',11);
 
-insert into colours(c_speccode,col1,col2,col3) values
- (0,2,1,1), (0,3,1,1), (32,4,1,1), (0,5,1,1),
- (1048543,6,1,1), (1,7,1,1),
- (658531,8,1,1), (0,9,1,1), (32,10,1,1), (32,11,1,1),
- (2,12,1,1), (1048543,13,1,1),
- (32,14,1,1), (1,15,1,1), (32,16,1,1), (1,17,1,1),
- (32,18,1,1), (2,19,1,1), (1,20,1,1), (1032192,21,1,1),
- (0,22,1,1), (32,23,1,1), (32,24,1,1), (32,25,1,1),
- (16,26,1,1), (1040335,27,1,1),
- (32,28,1,1), (32,29,1,1), (32,30,1,1),
- (2,32,1,1), (1,33,1,1), (32,34,1,1), (2,35,1,1),
- (0,36,1,1), (11,39,1,1),
- (1048543,3,6,1), (1048543,3,13,1),
- (2,3,19,1), (0,3,31,1), (0,5,9,1), (2,5,9,35), (0,5,9,36),
- (2,5,32,1), (2,5,35,1), (2,5,35,9), (0,5,36,1), (0,5,36,9),
- (1048543,6,17,1), (1048543,6,13,1),
- (2,6,35,1), (1,7,5,1), (1,7,36,1),
- (658531,8,36,1), (2,12,5,1), (2,12,6,1), (2,12,9,1),
- (1048543,13,3,1), (1048543,13,5,1),
- (1048543,13,6,1), (1048543,13,9,1),
- (2,13,35,1), (1,15,36,1), (1,17,36,1), (2,19,3,1),
- (2,19,6,1), (2,19,36,1), (0,22,3,1), (0,22,5,1),
- (1048543,22,6,1), (0,22,9,1),
- (1048543,22,13,1), (2,22,19,1),
- (0,22,36,1), (1040335,27,3,1),
- (1,27,17,1), (1040335,27,22,1),
- (1040335,27,31,1), (1040335,27,36,1),
- (2,32,3,1), (2,32,6,1), (2,32,19,1), (2,32,22,1),
- (2,32,27,1), (2,32,35,1), (2,32,36,1), (2,35,3,1),
- (0,36,5,1), (1048543,36,6,1), (1,36,6,17),
- (1,36,7,1), (658531,36,8,1),
- (0,36,9,1), (1048543,36,13,1),
- (1,36,15,1), (1,36,17,1), (32,36,18,1), (2,36,32,1),
- (2,36,35,1);
+insert into colours(col1,col2,col3) values
+ (2,1,1), (3,1,1), (4,1,1), (5,1,1),
+ (6,1,1), (7,1,1),
+ (8,1,1), (9,1,1), (10,1,1), (11,1,1),
+ (12,1,1), (13,1,1),
+ (14,1,1), (15,1,1), (16,1,1), (17,1,1),
+ (18,1,1), (19,1,1), (20,1,1), (21,1,1),
+ (22,1,1), (23,1,1), (24,1,1), (25,1,1),
+ (26,1,1), (27,1,1),
+ (28,1,1), (29,1,1), (30,1,1),
+ (32,1,1), (33,1,1), (34,1,1), (35,1,1),
+ (36,1,1), (39,1,1),
+ (3,6,1), (3,13,1),
+ (3,19,1), (3,31,1), (5,9,1), (5,9,35), (5,9,36),
+ (5,32,1), (5,35,1), (5,35,9), (5,36,1), (5,36,9),
+ (6,17,1), (6,13,1),
+ (6,35,1), (7,5,1), (7,36,1),
+ (8,36,1), (12,5,1), (12,6,1), (12,9,1),
+ (13,3,1), (13,5,1),
+ (13,6,1), (13,9,1),
+ (13,35,1), (15,36,1), (17,36,1), (19,3,1),
+ (19,6,1), (19,36,1), (22,3,1), (22,5,1),
+ (22,6,1), (22,9,1),
+ (22,13,1), (22,19,1),
+ (22,36,1), (27,3,1),
+ (27,17,1), (27,22,1),
+ (27,31,1), (27,36,1),
+ (32,3,1), (32,6,1), (32,19,1), (32,22,1),
+ (32,27,1), (32,35,1), (32,36,1), (35,3,1),
+ (36,5,1), (36,6,1), (36,6,17),
+ (36,7,1), (36,8,1),
+ (36,9,1), (36,13,1),
+ (36,15,1), (36,17,1), (36,18,1), (36,32,1),
+ (36,35,1);
 
 -- Breeds
 insert into breeds (breed_name, b_spec, breed_abbr) values
@@ -371,12 +371,13 @@ insert into units values (1,'tablet','tablets','tab','t'),(2,'drop','drops','dr'
 -- de: (1,'Tablette','Tabletten','Tab','t'),(2,'Tropfen','','Tr','T'),(3,'ml','','ml','m'),(4,'l','','l','l'),(5,'mg','','mg','M'),(6,'g','','g','g'),(7,'kg','','kg','k'),(8,'Tube','Tuben','Tub','T'),(9,'Flasche','Flaschen','Fl','f'),(10,'Packung','Packungen','Pck','P'),(11,'Beutel','','Btl','b'),(12,'Stück','','St','s'),(13,'Dosis','Dosen','Dos','d'),(14,'IU','','IU','i'),(15,'','','','X'),(16,'cm','','cm','c');
 
 insert into validities (val_text, val_days) values
- ('2 - 4 weeks', 21),--1
+ ('3 - 5 weeks', 28),--1
  ('1 year', 365),    --2
  ('1 month', 28),    --3
  ('6 months', 180),  --4
  ('2 years', 730),   --5
- ('3 years', 1095);  --6
+ ('3 years', 1095),  --6
+ ('None', 0);        --7
 
 insert into categories /* as of NOAH 2007 */ (category) values ('ACE Inhibitor'), ('adsorbent'), ('amino acid'), ('anaesthetic, local'), ('anaesthetic, general'), ('anaesthetic, general, fish'), ('analgesic'), ('antacid'), ('antiarrhythmic'), ('antibiotic'), ('anticonvulsant'), ('antidepressant'), ('antidote'), ('antiemetic'), ('antiepileptic'), ('antifungal'), ('antihistamine'), ('antiinflammatory, nonsteroidal'), ('antiinflammatory, steroidal'), ('antiparasitic'), ('antiseptic'), ('antitussive'), ('astringens'), ('beta blocker'), ('bronchodilator'), ('bronchomucolytic'), ('calcium channel blocker'), ('cardiologic'), ('chemotherapeutic'), ('Cushing treatment'), ('diuretic'), ('electrolyte'), ('emetic'), ('enzyme'), ('euthanasia'), ('foam breaker'), ('h2 blocker'), ('herbal'), ('hormonal'), ('immunoglobuline'), ('immunosuppressant'), ('interferon'), ('laxans'), ('MAO inhibitor'), ('muscle relaxans'), ('nutritional'), ('obstetric adjuvant'), ('organic'), ('organic phosphorus'), ('parasympatholytic'), ('protein'), ('respiratory stimulant'), ('sedative'), ('spasmolytic'), ('styptic'), ('sympatholytic'), ('sympathomimetic'), ('synovial'), ('thyroid'), ('trace mineral'), ('vaccination'), ('vitamin'), ('ware'), ('water');
 
@@ -626,7 +627,7 @@ insert into vtypes(vt_id,vt_type) values
  (16, 'Myxo'),
  (17, 'RHD');
 
-insert into vaccinations
+insert into vaccinations -- hierwei
  (vac_id, vac_type, vac_prid, vac_sid, vac_validity, vac_spec)
  values
 ( 1, 2, 20, 130, 1, 1),
@@ -639,7 +640,7 @@ insert into vaccinations
 ( 8, 1, 20, 137, 2, 1),
 ( 9, 4, 29, 138, 2, 1),
 (10, 4, 29, 139, 2, 1),
-(11, 5, 31, 140, 6, null),
+(11, 5, 31, 140, 6, 4095),
 (12, 8, 23, 141, 1, 2),
 (13, 8, 23, 142, 2, 2),
 (14, 8, 23, 143, 2, 2),
@@ -648,20 +649,20 @@ insert into vaccinations
 (17, 7, 24, 146, 2, 2),
 (18, 7, 24, 147, 2, 2),
 (19, 12, 24, 148, 2, 2),
-(20, 12, 33, 149, 1, 6),
-(21, 12, 33, 150, 1, 6),
-(22, 12, 33, 151, 4, 6), -- check mfs here
-(23, 12, 33, 152, 4, 6),
-(24, 14, 33, 153, 4, 6),
-(25, 14, 164, 154, 2, 6),
-(26, 13, 165, 155, 6, 6),
-(27, 13, 34, 156, 1, 6),
-(28, 13, 34, 157, 1, 6),
-(29, 13, 34, 158, 4, 6),
-(30, 15, 34, 159, 4, 6),
-(31, 15, 34, 160, 2, 6),
-(32, 16, 166, 161, 1, 6),
-(33, 17, 166, 162, 2, 6),
+(20, 12, 33, 149, 1, 32),
+(21, 12, 33, 150, 1, 32),
+(22, 12, 33, 151, 4, 32), -- check mfs here
+(23, 12, 33, 152, 4, 32),
+(24, 14, 33, 153, 4, 32),
+(25, 14, 164, 154, 2, 32),
+(26, 13, 165, 155, 6, 32),
+(27, 13, 34, 156, 1, 32),
+(28, 13, 34, 157, 1, 32),
+(29, 13, 34, 158, 4, 32),
+(30, 15, 34, 159, 4, 32),
+(31, 15, 34, 160, 2, 32),
+(32, 16, 166, 161, 1, 32),
+(33, 17, 166, 162, 2, 32),
 (34, 3, 168, 163, 1, 1);
 
 insert into symptoms(symptom, sy_short) values ('',''),('anal glands','ag'),('arthrologic','arth'),('cardiac','card'),('central nervous','cns'),('dental','dent'),('dermatologic','derm'),('ears','ears'),('gastrologic','gast'),('genital','genit'),('hepatic','hepat'),('intestinal','int'),('muscular','musc'),('nasal','nasal'),('neoplastic','np'),('obstetric','obst'),('ophthalmologic','ophth'),('oropharyngeal','oroph'),('pancreatic','panc'),('pulmonary','pulm'),('renal','renal'),('reproductive','repr'),('respiratory','resp'),('skeletal','skel'),('spinal','spin'),('standard surgery','stsrg'),('unwell','unwel'),('urinary','urin'),('vaccination','vacc'),('vascular','vasc'),('ektoparasites','ekp'),('endoparasites','enp');

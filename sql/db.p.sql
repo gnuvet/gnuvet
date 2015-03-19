@@ -55,7 +55,7 @@ create table markups(
 create table ptypes(
  pt_id serial primary key,
  pt_name varchar(20) not null,
- pt_markup integer not null references markups default 1);
+ pt_markup int not null default 1 references markups);
 
 -- create type ptype as enum('con','hst','med','vac','srv','god','fod','oth');
 
@@ -71,7 +71,7 @@ create table addresses(
 create table branches(
  branch_id serial primary key,
  branch_name varchar(120) not null,
- branch_address integer references addresses not null default 1,
+ branch_address int not null default 1 references addresses,
  branch_tel varchar(30),
  branch_mobile varchar(30),
  branch_fax varchar(30),
@@ -84,13 +84,13 @@ create table boxes( -- computers in gnuvet network
  box_id serial primary key,
  box_name varchar(80) not null, --  'Surgery1', 'Reception2' etc.
  box_ipv4 inet unique not null,
- box_branch integer references branches not null,
- box_role integer references boxroles not null);
+ box_branch int not null default 1 references branches,
+ box_role int references boxroles not null);
 
 create table staff(
  stf_id serial primary key,
- stf_func integer references staffroles not null default 2,
- stf_title integer references titles not null default 3,
+ stf_func int not null default 2 references staffroles,
+ stf_title int not null default 3 references titles,
  stf_sex sex not null default 'n',
  stf_surname varchar(80) not null,
  stf_mname varchar(25) not null default '',
@@ -103,11 +103,11 @@ create table staff(
 
 create table clients(
  c_id serial primary key,
- c_title int references titles not null default 3,
+ c_title int not null default 3 references titles,
  c_sname varchar(80) not null,
  c_mname varchar(25) not null default '',
  c_fname varchar(80) not null default '',
- c_address integer references addresses not null default 1,
+ c_address int not null default 1 references addresses,
 -- c_telhome varchar(30) not null default '',
 -- c_telwork varchar(30) not null default '',
 -- c_mobile1 varchar(30) not null default '',
@@ -120,7 +120,7 @@ create table clients(
 
 create table phones( -- client phones
 -- phone_id serial primary key,
- phone_cid integer not null references clients,
+ phone_cid int not null references clients,
  phone_opt smallint not null default 1, -- 1 best
  phone_num varchar(25) not null default '',
  phone_anno varchar(25) not null default '',
@@ -134,7 +134,7 @@ create table phones( -- client phones
 create table locations(
  l_id serial primary key,
  l_name varchar(80) not null,
- l_address integer references addresses not null default 1,
+ l_address int not null default 1 references addresses,
  l_tel varchar(30) default '',
  l_mobile varchar(30) default '',
  l_anno varchar(255) not null default '');
@@ -151,7 +151,7 @@ create table species(
 
 create table breeds(
  breed_id serial primary key,
- b_spec integer references species not null,
+ b_spec int references species not null,
  breed_name varchar(80) unique not null,
  breed_abbr varchar(5) unique not null);
 
@@ -161,16 +161,15 @@ create table basecolours(
 -- bc_combine colcombine not null default 'y',
 -- this to be bit(1) for null (none), 0 (poss), 1 (must)
  bc_combine bit(1) default '0',
--- bc_speccode varchar(120) not null);
- bc_speccode int not null);
+ bc_spec int not null);
 
 create table colours(
  col_id serial primary key,
 -- c_speccode varchar(120) not null,
- c_speccode int not null,
- col1 integer references basecolours not null,
- col2 integer references basecolours not null,
- col3 integer references basecolours not null,
+-- c_speccode int not null, -- redundant: or bc_spec
+ col1 int references basecolours not null,
+ col2 int references basecolours not null,
+ col3 int references basecolours not null,
  unique (col1,col2,col3));
 
 create table insurances(
@@ -178,7 +177,7 @@ create table insurances(
  i_name varchar(80) not null,
  i_email varchar(120),
  i_rep varchar(120),
- i_address integer references addresses not null default 1,
+ i_address int not null default 1 references addresses,
  i_tel varchar(30),
  i_anno varchar(255) not null default '');
 
@@ -189,40 +188,40 @@ create table chronics(
 create table patients(
  p_id serial primary key,
  p_name varchar(80) not null,
- p_cid integer references clients not null,
- breed integer references breeds,
+ p_cid int references clients not null,
+ breed int references breeds,
  xbreed boolean not null default False,
  dob date,
  dobest boolean not null default False,
- colour integer references colours,
+ colour int references colours,
  sex sex,
  neutd boolean default False,
  vicious boolean not null default False,
  p_reg date,
  p_anno varchar(255) not null default '',
- loc integer references locations,
+ loc int references locations,
  identno varchar(20),
  petpass varchar(20),
  rip boolean not null default False,
  p_last timestamp,
- ins integer references insurances,
- chr integer not null default 0); --> chronic problems, 1<<chr-1 bitmask
+ ins int references insurances,
+ chr int not null default 0); --> chronic problems, 1<<chr-1 bitmask
 
 create index p_name_idx on patients(p_name);
 
 -- maybe redundance, but i think eases search for patient seen some date:
 create table seen(
- seen_pid integer not null references patients, 
+ seen_pid int not null references patients, 
  seen_date date not null);
 
 create index seen_pid_idx on seen(seen_pid);
 
 create table neuts(
- neut_id integer not null references patients,
+ neut_id int not null references patients,
  neut_date date);
 
 create table rips(
- rip_id integer not null references patients,
+ rip_id int not null references patients,
  rip_date timestamp not null);
 
 create table ownerhist(
@@ -257,14 +256,14 @@ create table categories(
 create table ingredients(
  ingr_id serial primary key,
  ingredient varchar(50) not null unique,
- ingr_catid integer references categories); -- not null?
+ ingr_catid int references categories); -- not null?
 
 create table suppliers(
  s_id serial primary key,
  s_name varchar(80) not null,
  s_rep varchar(120),
  s_email varchar(80),
- s_address integer references addresses not null default 1,
+ s_address int not null default 1 references addresses,
  s_tel varchar(30),
  s_fax varchar(30),
  s_mobile varchar(30));
@@ -274,7 +273,7 @@ create table instructions(
  inst_id serial primary key,
  inst_abbr varchar(5) not null,
  inst_txt varchar(90) not null,
- inst_pos integer not null,
+ inst_pos int not null,
  unique (inst_abbr, inst_pos));
 
 /* collection of printed label texts for re-use */
@@ -289,76 +288,76 @@ create table products(
  pr_id serial primary key,
  pr_name varchar(80) not null,
  pr_short varchar(10) not null,
--- pr_type integer references ptypes not null default 1, -- srv, med, good etc.
- pr_type int not null references ptypes default 1,
+-- pr_type int not null default 1 references ptypes, -- srv, med, good etc.
+ pr_type int not null default 1 references ptypes,
  pr_pprice numeric(8,2) not null default 0.00, -- net purchase price
  pr_nprice numeric(8,2) not null, -- net sale price
  pr_from date not null default '2010-01-01',
- pr_vat integer references vats default 1,
+ pr_vat int default 1 references vats,
  pr_perm boolean not null default FALSE, -- 0 OTC,  1 POM
- pr_u integer references units not null,
--- pr_ingr integer references ingredients, -- bitmask? separate table! if at all
+ pr_u int not null references units,
+-- pr_ingr int references ingredients, -- bitmask? separate table! if at all
  pr_instr boolean not null default TRUE -- ask for instructions
 -- pr_upordu numeric(8,4), -- for assistance in price calc -- whatsthis?
 );
 
-create table batchnos(
+create table batchnos( -- how should that work?
  chb_id serial primary key,
- chb_prid integer references products,
+ chb_prid int not null references products,
  chb_val varchar(30) not null);
 
 /* create table barcodes(
  bcode_id serial primary key,
- bcode_prid integer references products;
- bcode_val integer);
+ bcode_prid int references products;
+ bcode_val int);
 
 create table stocks(
  st_id serial primary key,
- st_prid integer not null references products,
+ st_prid int not null references products,
  st_num numeric(9,2) not null);
 
 create table limits(
  l_id serial primary key,
- l_prid integer not null references products,
+ l_prid int not null references products,
  l_val numeric(9,2) not null);
 
 create table pr_supplier(
- prid integer not null references products,
- prsup integer references suppliers,
+ prid int not null references products,
+ prsup int references suppliers,
  prordid varchar(100));
 ****************/
 
 create table pricehist( -- more efficient than obsoleting old prodprices
  pop_id serial primary key,
- pop_prid integer not null references products,
+ pop_prid int not null references products,
  pop_npr numeric(8,2) not null,
- pop_vat integer not null references vats,
+ pop_vat int not null references vats,
  pop_todate date not null,
  pop_reason varchar(100) not null default '');
 
 /*
-create table toorder(o_prid integer not null references products, o_date date);
+create table toorder(o_prid int not null references products, o_date date);
 **************/
 
 /* 'validity' for vaccinations */
 create table validities(
  val_id serial primary key,
  val_text varchar(255) not null,
- val_days integer not null);
+ val_days int not null);
 
-create table vtypes(
- vt_id serial primary key,
+create table vtypes( --   NB: equal vtypes can have diff validities depending
+ vt_id serial primary key, -- on used product
  vt_type varchar(20));
 
 create table vaccinations(
  vac_id serial primary key,
- vac_type integer not null references vtypes,
- vac_prid integer not null references products, -- used product
- vac_sid integer not null references products, -- service
- vac_validity integer references validities, -- not null ifd
- vac_spec integer references species); -- null: all, like rabies
+ vac_type int not null references vtypes,
+ vac_prid int not null references products, -- used product
+ vac_sid int not null references products, -- service
+ vac_validity int not null references validities,
+ vac_spec int not null); -- bitmask
 
-create table vdues(vd_pid integer not null references patients,vd_type integer references vtypes,vd_vdue date not null);
+create table vdues(vd_pid int not null references patients,vd_type int references vtypes,vd_vdue date not null);
 
  -- to ease use of the diverse tables, currently unused
 -- create or replace view vacs (v_id,v_prod,v_serv,v_short,v_nprice,v_spec) as select vac_id,p.pr_name,s.pr_name,s.pr_short,case when s.pr_nprice=0 then 0.00 else p.pr_nprice + s.pr_nprice end,vac_spec from vaccinations,products p,products s where vac_prid=p.pr_id and vac_sid=s.pr_id;
@@ -373,17 +372,17 @@ create table applications(
  app_keyword varchar(20) not null);
 
 create table app2prod( -- link product to service: a injectable->injection
- a2p_prid integer references products primary key,
- a2p_prod integer references applications not null);
+ a2p_prid int primary key references products,
+ a2p_prod int not null references applications);
 
 /*create table withdrawals( -- wartezeiten #d
  w_id serial primary key,
- w_prid integer references products,
- w_spec integer references species,
- w_app integer references wd_apps,
- w_meat integer not null,
- w_milk integer,
- w_eggs integer,
+ w_prid int references products,
+ w_spec int references species,
+ w_app int references wd_apps,
+ w_meat int not null,
+ w_milk int,
+ w_eggs int,
  w_obs boolean not null default FALSE);
 
 create table wd_apps( -- wd dependent on app type and/or dosage
@@ -393,26 +392,24 @@ create table wd_apps( -- wd dependent on app type and/or dosage
 
 create table invoices( -- hierwei
  inv_id serial primary key,
- inv_branch int not null references branches,
- inv_no integer not null);
+ inv_branch int not null default 1 references branches,
+ inv_no int not null);
 -- cave 0er Jahre: select length(n::text)<10 -> +0
 -- wie invoicen?
 
 create table appointments(
  app_id serial primary key,
- app_branch int not null references branches,
+ app_branch int not null default 1 references branches,
  app_dt timestamp not null,
  app_text varchar(128) not null,
- app_cid integer references clients,
- app_pid integer references patients,
- app_staffid integer references staff,
+ app_cid int references clients,
+ app_pid int references patients,
+ app_staffid int references staff,
  app_dur interval not null default '0:00',
  app_status char not null default 'o');
 
-create table events(e_id serial primary key,e_pid int references patients);
+create table events(e_id serial primary key,e_pid int not null references patients);
 
--- hierwei  da ist ein Loch, wenn nicht cid auch in events bei event ohne pid!
--- oder wir geben dann ein null ein und holen cid von acc?
 create table prods(
  prod_id serial primary key,
  prod_consid int not null references events,
@@ -432,17 +429,16 @@ create table clinhists(
 
 create table accs(
  acc_id serial primary key,
- acc_branch int not null references branches,
+ acc_branch int not null default 1 references branches,
  acc_cid int not null references clients,
  acc_prid int references prods,
  acc_npr numeric(9,2) not null,
- acc_vat int references vats
+ acc_vat int not null references vats,
  acc_inv int references invoices);
 
 create table insts(
- in_id serial primary key,
- in_text varchar(300) not null default '',
- in_prodid integer not null references prods);
+ in_prodid int not null primary key references prods,
+ in_text varchar(300) not null default '');
 
 create table weights(
  w_id serial primary key,
@@ -455,23 +451,23 @@ create table weights(
 create table vaccs(
  v_id serial primary key,
  v_pid int not null references patients,
- v_used int not null references vaccinations,
- v_dt date not null,
- v_due date not null);
+ v_type int not null references vaccinations,
+ v_chb varchar(30) not null default '',
+ v_dt date not null); -- tolerable redundance
 
  -- hierwei
--- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid integer not null references clients, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));
+-- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid int not null references clients, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));
 -- de: 'Bar', 'Kontokarte', 'Kreditkarte', 'Scheck', 'Überweisung', 'Einzug'
 
 -- create type statem_env as enum ('Invoice','Receipt','Letter','Statement');
 -- create table statements(stat_id serial primary key, stat_env statem_env not null, statement varchar(80) not null);
 
 -- create type ordermode as enum('fax','email','modem','online','application','phone','letter'); --?
--- create table orders(ord_id serial primary key, ord_date timestamp not null, ord_prid integer references products not null, ord_amount integer not null, ord_supplier integer references suppliers not null, ord_method ordermode not null);
+-- create table orders(ord_id serial primary key, ord_date timestamp not null, ord_prid int not null references products, ord_amount int not null, ord_supplier int not null references suppliers, ord_method ordermode not null);
 
 -- delivery?
 
--- create table orderTIMESTAMP(o_id serial primary key, ono varchar(15) not null, oprid integer references products not null, ogprice numeric(6,2) not null, ogvat integer references vats not null, ogamount numeric(6,3) not null, ogdate date not null, osentdate date not null, ogreceived date/*?*/ not null, ogpaid date not null);
+-- create table orderTIMESTAMP(o_id serial primary key, ono varchar(15) not null, oprid int not null references products, ogprice numeric(6,2) not null, ogvat int not null references vats, ogamount numeric(6,3) not null, ogdate date not null, osentdate date not null, ogreceived date/*?*/ not null, ogpaid date not null);
 
 -- journals from present data.
 -- archives:older 2a  waiting invoices?  receipts?
