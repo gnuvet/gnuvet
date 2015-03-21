@@ -282,7 +282,7 @@ create table labels(
  lb_abbr varchar(15) unique,
  lb_txt varchar(255) unique);
 
-create table pay_modes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
+create table paymodes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
 
 create table products(
  pr_id serial primary key,
@@ -417,15 +417,15 @@ create table prods(
  prod_count numeric(9,2) not null default 1,
  prod_dt timestamp not null,
  prod_symp int references symptoms,
- prod_staff int references staff);
+ prod_staff int not null default 1 references staff);
 
 create table clinhists(
  ch_id serial primary key,
  ch_consid int not null references events,
  ch_dt timestamp not null,
  ch_text varchar(1024),
- ch_symp int not null references symptoms,
- ch_staff int not null references staff);
+ ch_symp int references symptoms,
+ ch_staff int not null default 1 references staff);
 
 create table accs(
  acc_id serial primary key,
@@ -446,7 +446,7 @@ create table weights(
  w_dt timestamp not null default current_timestamp,
  w_est bool not null default false,
  w_weight numeric(7,3)not null,
- w_staff int not null references staff);
+ w_staff int not null default 1 references staff);
 
 create table vaccs(
  v_id serial primary key,
@@ -454,6 +454,13 @@ create table vaccs(
  v_type int not null references vaccinations,
  v_chb varchar(30) not null default '',
  v_dt date not null); -- tolerable redundance
+
+create table payments(
+ pay_id serial primary key,
+ pay_cid int not null references clients,
+ pay_date date not null,
+ pay_regd date,
+ pay_mode int not null references paymodes);
 
  -- hierwei
 -- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid int not null references clients, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));

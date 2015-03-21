@@ -1,12 +1,26 @@
 #!/bin/bash
 set -e
-echo -n '    Going to roll in db.psql: '
-psql gnuvet < ./db.psql 2>&1 | egrep ERR\|FEH && ERR=1
+verbose='2>&1|egrep ERR\|FEH && ERR=1'
+#debug=echo
+
+if [ -n "$1" ]; then
+    if [ $1 == "-h" ]; then
+	echo "Usage: recrdb.psql [-h|-v]"
+	exit 0
+    elif [ $1 == '-v' ]; then
+	verbose=""
+    fi
+fi
+
+echo -n '    Going to roll in db.p.sql: '
+$debug psql gnuvet -f ./db.p.sql "$verbose"
 echo 'done'
-echo -n '    Going to roll in populate.psql: '
-psql gnuvet < ./populate.psql 2>&1 | egrep ERR\|FEH && ERR=1
+echo -n '    Going to roll in populate.p.sql: '
+$debug psql gnuvet -f ./populate.p.sql "$verbose"
 echo 'done'
-echo -n '    Going to roll in sample-entries.psql: '
-psql gnuvet < ./sample-entries.psql 2>&1 | egrep ERR\|FEH && ERR=1
+echo -n '    Going to roll in sample-entries.p.sql: '
+$debug psql gnuvet -f ./sample-entries.p.sql "$verbose"
 echo 'done'
-[ "$ERR" ] && echo "    Db re-created with Errors." || echo "    Db re-created successfully."
+if [ -n "$verbose" ]; then
+    [ "$ERR" ] && echo "    Db re-created with Errors." || echo "    Db re-created successfully."
+fi

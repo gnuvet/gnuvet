@@ -104,7 +104,7 @@ insert into phones values(2,2,'01675 478 322',''),(2,2,'07726 898 122',''),(2,1,
 
 update clients set baddebt='1' where c_id=17;
 
-insert into events(e_pid)values (1),(1),(1),(1),(1),(1);
+insert into events(e_pid)values(1),(1),(1),(1),(1),(1);
 insert into clinhists(ch_consid,ch_dt,ch_text,ch_symp)values
  (1,'2005-04-11 08:54:19','o.B.',1),
  (2,'2005-05-10 10:44:32','o.B.',1),
@@ -147,19 +147,20 @@ insert into vaccs(v_pid,v_type,v_dt)values(1,2,'2004-05-03'),(1,2,'2005-05-16'),
 insert into vdues values(1,2,'2010-05-10'),(1,5,'2012-05-10');
 
 -- Elsa
-insert into vaccs(v_pid,v_type,v_dt)values(16,2,'2008-3-21')
+insert into vaccs(v_pid,v_type,v_dt)values(16,2,'2008-3-21');
 insert into vdues values(16,2,'2009-3-20');
-create temporary table value(id integer);
-with val as (insert into events(e_pid)values(16)returning e_id) insert into value select id from val; -- e_id 9
-insert into prods(prod_consid,prod_dt,prod_prid)values(select id from value,'2008-3-24 14:44:45',133);
-insert into clinhists(ch_consid,ch_dt,ch_text)values(select id from value,'2008-3-24 14:45:45','o.B.');
+create table mem(m_id integer);
+with val as(insert into events(e_pid)values(16)returning e_id)insert into mem(select e_id from val); -- e_id 9
+\encoding utf-8
+insert into prods(prod_consid,prod_dt,prod_prid)values((select m_id from mem),'2008-3-24 14:44:45',133);
+insert into clinhists(ch_consid,ch_dt,ch_text)values((select m_id from mem),'2008-3-24 14:45:45','o.B.');
 
 -- Rex
 insert into vaccs(v_pid,v_type,v_dt)values(19,2,'2008-3-13');
 insert into vdues values(19,2,'2009-3-12');
-with val as (insert into events(e_pid)values(19)returning e_id) update values set id=(select id from val); -- e_id 10
-insert into prods(prod_consid,prod_dt,prod_prid)values(select id from value,'2008-3-12 14:34:12',133);
-insert into clinhists(ch_consid,ch_dt,ch_text)values(select id from value,'2008-3-12 14:35:45','o.B.');
+with val as (insert into events(e_pid)values(19)returning e_id)update mem set m_id=(select e_id from val); -- e_id 10
+insert into prods(prod_consid,prod_dt,prod_prid)values((select m_id from mem),'2008-3-12 14:34:12',133);
+insert into clinhists(ch_consid,ch_dt,ch_text)values((select m_id from mem),'2008-3-12 14:35:45','o.B.');
 
 insert into addresses(housen,street,village,city,region,postcode)values
  ('NVS','Twyman Street','','Brummagem','West Midlands','B72 5SO'),
@@ -173,7 +174,7 @@ insert into suppliers(s_name,s_address,s_tel,s_fax,s_mobile,s_email,s_rep)values
  'vet@vetoquinol.co.uk','Mr Nevar T.B. Shangarathi'),
  ('Kruuse',23,'+3x989 123 456','+3x989 456 123','','info@kruuse.dk','');
 
-insert into insts(in_prodid,in_text)values(select prod_id from prods where prod_consid=7 order by prod_consid desc limit 1,'Give 1 tablet twice daily for 7 days');
+insert into insts(in_prodid,in_text)values((select prod_id from prods where prod_consid=7 order by prod_consid desc limit 1),'Give 1 tablet twice daily for 7 days');
 
 insert into invoices(inv_no)values(1205140001),(1207280001);
 
