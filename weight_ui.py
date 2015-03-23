@@ -6,6 +6,8 @@
 # version 3 or later (GPLv3+ in short).  See the file LICENSE for information.
 
 # Initially created: Tue May 31 08:35:25 2011 by: PyQt4 UI code generator 4.8.3
+# TODO:
+# add no_dbconn?
 
 from PyQt4.QtGui import (QApplication, QCheckBox, QComboBox, QDateTimeEdit,
                          QDoubleSpinBox, QFrame, QLabel, QPushButton,)

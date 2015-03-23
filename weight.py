@@ -14,7 +14,7 @@ from psycopg2 import OperationalError
 from PyQt4.QtCore import Qt, QPointF, pyqtSignal
 from PyQt4.QtGui import (QMainWindow, QPainter, QPolygonF, QWidget)
 from keycheck import Keycheck
-from util import ch_conn, newaction
+from util import ch_conn, newaction, querydb
 from weight_ui import Ui_Weight
 
 def D(arg=0):
@@ -296,15 +296,19 @@ class Weight(QMainWindow):
     wbackup = None
     weightchanged = pyqtSignal(tuple)
 
-    def __init__(self, parent=None, p_id=0, rip=False):
+    def __init__(self, parent=None, pid=0, rip=False):
         super(Weight, self).__init__(parent)
         self.conns = {} # disconnect() w/o arg segfaults
         self.sigs = {}
-        self.p_id = p_id
+        self.pid = pid
         self.weights = []
         self.w = Ui_Weight()
         self.w.setupUi(self)
         if parent:
+            if parent.gaia == 'gaia':
+                self.gaia = parent
+            else:
+                self.gaia = parent.gaia
             parent.dbstate.connect(self.db_state)
             self.db = parent.db
             self.staffid = parent.staffid
@@ -319,31 +323,17 @@ class Weight(QMainWindow):
         except AttributeError: # no db connection
             self.db_state()
             return
-        try:
-            self.curs.execute('select stf_logname from staff where stf_id=%s',
-                              (self.staffid,))
-            self.logname = self.curs.fetchall()[0][0]
-        except (OperationalError, AttributeError) as e:
-            self.db_state(e)
-            return
+        self.logname = querydb(
+            self, 'select stf_logname from staff where stf_id=%s',
+            (self.staffid,))
+        if self.staffid is None:  return # db error
+        self.logname = self.logname[0][0]
         self.w.lLb.setText(self.logname)
-        try: # WEIGHT
-            self.curs.execute('select p_name from patients where p_id=%s',
-                              (p_id,))
-            p_name = self.curs.fetchall()[0][0]
-        except OperationalError:
-            self.db_state()
-            return
-        try:
-            self.curs.execute(
-                "select count(*)from pg_tables where tablename='weight%s'",
-                (p_id,))
-            count = self.curs.fetchall()[0][0] # WEIGHT
-        except OperationalError:
-            self.db_state()
-            return
-        if count:
-            self.fetchdata()
+        pname = querydb(
+            self, 'select p_name from patients where p_id=%s', (pid,))
+        if pname is None:  return # db error
+        pname = pname[0][0]
+        self.fetchdata()
         self.ck_size()
         self.w.closePb.clicked.connect(self.close)
         self.w.addPb.setDefault(True)
@@ -373,7 +363,7 @@ class Weight(QMainWindow):
         closeA.triggered.connect(self.close)
         helpA.triggered.connect(self.help)
         quitA.triggered.connect(self.gv_quitconfirm)
-        self.parea = Parea(self, p_name)
+        self.parea = Parea(self, pname)
         self.parea.setGeometry(20, 50, self.width()-40, 300)
         self.parea.setSizePolicy(0, 0)
         self.ck_dates()
@@ -411,7 +401,7 @@ class Weight(QMainWindow):
         else:
             self.w.entrydelPb.setToolTip(
                 self.tr('Only GnuVet Master can delete entry '
-                        'by different staff member'))
+                        'from different staff member'))
     
     def ck_dates(self): # WEIGHT
         """If less than 5 entries, disable period selection.  Overkill?"""
@@ -568,14 +558,11 @@ class Weight(QMainWindow):
         self.ck_dates()
         
     def fetchdata(self): # WEIGHT
-        try:
-            self.curs.execute(
-                'select w_date,weight,w_est,w_staff from weight%s '
-                'order by w_date', (self.p_id,))
-        except OperationalError:
-            self.db_state()
-            return
-        self.weights = self.curs.fetchall()
+        self.weights = querydb(
+            self,
+            'select w_date,weight,w_est,w_staff from weights where w_pid=%s '
+            'order by w_date', (self.pid,))
+        if self.weights is None:  return # db error
         self.lweight = self.weights[-1][:3]
 
     def gv_quitconfirm(self):
@@ -592,21 +579,16 @@ class Weight(QMainWindow):
 
     def weight_add(self): # WEIGHT
         """Add weight entry to db and list."""
-        if not len(self.weights):
-            self.curs.execute(
-                'create table weight%s(w_id serial primary key,w_est boolean '
-                'not null default FALSE, w_date timestamp not null default '
-                'current_timestamp,weight numeric(7,3) not null,'
-                'w_staff integer references staff not null)', (self.p_id,))
-            self.db.commit()
         wdt = self.w.wDe.dateTime().toPyDateTime()
-        wdt = datetime(
-            wdt.year, wdt.month, wdt.day, wdt.hour, wdt.minute, wdt.second)
-        self.curs.execute(
-            'insert into weight%s(w_est,w_date,weight,w_staff)values'
-            '(%s, %s, %s, %s)',
-            (self.p_id, self.w.estCb.isChecked(), wdt,
+        ## wdt = datetime(
+        ##     wdt.year, wdt.month, wdt.day, wdt.hour, wdt.minute, wdt.second)
+        suc = querydb(
+            self,
+            'insert into weights(w_pid,w_dt,w_est,w_weight,w_staff)values'
+            '(%s, %s, %s, %s, %s)returning w_id',
+            (self.pid, wdt, self.w.estCb.isChecked(),
              self.w.wSb.value(), self.staffid))
+        if suc is None:  return # db error
         self.db.commit()
         addition = (wdt,
                     D(self.w.wSb.value()),
@@ -660,9 +642,11 @@ class Weight(QMainWindow):
         self.circle.hide()
         wdt = self.delentries[self.w.entrydelDd.currentIndex()]
         weight = str(self.w.entrydelDd.currentText()).split()[2]
-        self.curs.execute(
-            "delete from weight%s where w_date=%s and weight=%s", (
-                self.p_id, wdt, D(weight)))
+        suc = querydb(
+            self,
+            'delete from weights where w_pid=%s and w_date=%s and weight=%s',
+            (self.pid, wdt, D(weight)))
+        if suc is None:  return # db error
         self.db.commit()
         self.weight_del_action(self.weights, wdt, weight)
         self.weight_del_action(self.wbackup, wdt, weight)
@@ -737,7 +721,6 @@ if __name__ == '__main__':
     from PyQt4.QtGui import QApplication
     a = QApplication([])
     a.setStyle('plastique')
-    p_id = 1
-    w = Weight(None, p_id)
+    w = Weight(None, pid=1)
     w.show()
     exit(a.exec_())
