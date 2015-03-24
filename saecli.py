@@ -325,53 +325,11 @@ class Saecli(QMainWindow):
         if phones:
             suc = querydb(
                 self,
-                'insert into phones values{}returning phone_cid'.format(phones))
+                'insert into phones values{}returning phone_cid'.format(
+                    phones))
             if suc is None:  return # db error
             self.db.commit()
-        ## self.create_tables()
     
-    def create_tables(self):
-        """Create accounting tables for new client and nn patient."""
-        self.stage = 3
-        tables = querydb(
-            self,
-            "select tablename from pg_tables where tablename='acc{}'".format(
-                self.cid))
-        if tables == None:  return # db error
-        if not tables[0][0]:
-            suc = querydb(
-                self,
-                "insert into patients(p_name,p_cid,p_reg)values('nn',%s,%s)"
-                "returning p_id", (self.cid, date.today()))
-            if suc is None:  return # db error
-            pid = suc[0][0]
-            try:
-                self.curs.execute(
-                    'create table e{}(id serial primary key)'.format(pid))
-                self.curs.execute(
-                    'create table prod{0}(id serial primary key,consid integer '
-                    'not null references e{0},dt timestamp not null default '
-                    'now(),prodid integer not null references products default '
-                    '1,symp integer not null references symptoms default 1,'
-                    'staff integer not null references staff default 1)'.format(
-                        pid))
-                self.curs.execute(
-                    "create table ch{0}(id serial primary key,consid integer "
-                    "not null references e{0},dt timestamp not null default "
-                    "now(),text varchar(1024) not null default '',symp "
-                    "integer not null references symptoms default 1,staff "
-                    "integer not null references staff default 1)".format(pid))
-                self.curs.execute(
-                    'create table acc{}(acc_id serial primary key,acc_pid '
-                    'integer not null references patients,acc_prid integer not '
-                    'null references prod{},acc_npr numeric(9,2) not null,'
-                    'acc_vat integer not null references vats,acc_paid bool '
-                    'default false)'.format(self.cid,self.pid))
-            except OperationalError as e:
-                self.db_state(e)
-                return
-            self.db.commit()
-
     def cli_edit(self):
         self.stage = 4
         # hierwei

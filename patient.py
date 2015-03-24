@@ -20,7 +20,7 @@ startdt: datetime for entry -> this to save in db for one consid?
 #
 # move printing into confirm!  With all due buttontext-changes...
 # vacc: note batchno somewhere!
-# fix ck_inv, payment
+# fix payment
 # insert edit_line/edit_consult into menu
 # adding|editing chronic condition
 # add functions for sale, vacc (via products?)
@@ -198,6 +198,10 @@ class Patient(QMainWindow):
         ## self.saveA.triggered.connect(self.w.savePb.click)
         #    PARENT CONNECTIONS
         if parent: # devel if
+            if parent.gaia == 'gaia':
+                self.gaia = parent
+            else:
+                self.gaia = parent.gaia
             self.dbA.triggered.connect(parent.db_connect)
             self.aboutA.triggered.connect(parent.about)
             parent.gvquit.connect(self.gv_quit)
@@ -206,6 +210,7 @@ class Patient(QMainWindow):
             self.helpsig.connect(parent.gv_help)
             self.db = parent.db
             self.staffid = parent.staffid
+            ## self.ptypes = self.gaia.ptypes
         else:
             import dbmod
             dbh = dbmod.Db_handler('enno')
@@ -356,21 +361,18 @@ class Patient(QMainWindow):
         ch_conn(self, 'prodclosed', self.productw.closed, self.pb_enable)
         self.productw.show()
 
-    def addch_inst(self, consid, okey):
+    def addch_inst(self, consid, okey): # hierwei dont func
+        # also rename addch_ to getch_
         """Construct list to insert medication instructions into htable."""
-        ok = querydb(
+        inst = querydb(
             self,
-            "select tablename from pg_tables where tablename='inst{}'".format(
-                self.pid))
-        if ok is None:  return # db error
-        if not ok:  return # no inst{}
-        instr = querydb(
-            self, 'select text from inst{} where prodid=%s'.format(
-                self.pid), (okey,))
-        if instr is None:  return # db error
-        if not instr:  return # no entry
-        instr = instr[0][0]
-        self.w.htable.append_row(['', instr, '', '', '~', ''])
+            'select prod_id,in_text from events,insts,prods where e_pid=%s and '
+            'prod_consid=e_id and prod_prid=%s',
+            (self.pid, okey))
+        if inst is None:  return # db error
+        if not inst:  return # no entry
+        inst = inst[0][0]
+        self.w.htable.append_row(['', inst, '', '', '~', ''])
         self.row2data.append((consid, okey, 0, self.lastdt))
         
     def addch_row(self, l, pos=None):
@@ -413,9 +415,6 @@ class Patient(QMainWindow):
         self.productw.close()
         self.get_vats()
         if self.dberr:  return
-        if not self.prevdata: # no prev hist
-            self.ck_tables()
-            if self.dberr:  return
         self.consid = self.ck_consid()
         if self.consid is None:  return # db error
         self.startdt = args[0] # rundt from productw
@@ -485,9 +484,6 @@ class Patient(QMainWindow):
         self.productw.close()
         self.get_vats()
         if self.dberr:  return
-        if not self.prevdata: # no prev hist
-            self.ck_tables()
-            if self.dberr:  return
         if not self.consid:
             self.consid = self.ck_consid()
         if self.consid is None:  return # db error
@@ -531,7 +527,6 @@ class Patient(QMainWindow):
             [self.rundt, res[0], args[4], self.units[res[1]]['ab'], args[5],
              self.logshort, self.consid, prodid, args[2]['type']], self.row+1)
         if args[6]:
-            self.ck_inst()
             if self.dberr:  return
             okey = querydb(
                 self,
@@ -560,9 +555,6 @@ class Patient(QMainWindow):
         self.productw.close()
         self.get_vats()
         if self.dberr:  return
-        if not self.prevdata:
-            self.ck_tables()
-            if self.dberr:  return
         if not self.consid:
             self.consid = self.ck_consid()
             if self.consid is None:  return # db error
@@ -772,48 +764,7 @@ class Patient(QMainWindow):
                 return consid[0][0]
         print('using unused consid: {}'.format(consid))
         return consid
-
-    def ck_inst(self):
-        """Check instruction table instN -- create if not exist."""
-        res = querydb(
-            self,
-            "select tablename from pg_tables where tablename='inst{}'".format(
-                self.pid))
-        if res is None:  return # db error
-        if not res:
-            try:
-                self.curs.execute(
-                    'create table inst{0}(id serial primary key,text varchar'
-                    '(300),prodid integer not null references prod{0})'.format(
-                        self.pid))
-            except OperationalError as e:
-                self.db_state(e)
-                return
-            self.db.commit()
             
-    def ck_inv(self): # hierwei: only create tables if summin booked -> util
-        """Check invoice tables accN, invN, payN?"""
-        res = querydb(
-            self,
-            "select tablename from pg_tables where tablename='inv{}'".format(
-                self.cid)) # [] or [('accN',)] # devel for Elsa, should: acc{}
-        if res is None:  return # db error
-        if not res: # no such table: create accC, invC, payC
-            try: # hierwei: commented for devel as acc2 exists
-                self.curs.execute(
-                    "create table inv{0}(inv_id serial primary key,inv_no "
-                    "integer not null references acc{0}(_acc_invno_),inv_pid "
-                    "integer not null references patients,inv_prid integer not "
-                    "null references products,inv_npr numeric(9,2)not null,"
-                    "inv_vat integer not null references vats default 1)".
-                    format(self.cid))
-            except OperationalError as e:
-                self.db_state(e)
-                return
-            self.db.commit()
-        else:
-            self.previnv = True
-
     def ck_num(self, num=0):
         """Check format of num, if integer return int(num)."""
         if num//1 == num:
@@ -836,40 +787,6 @@ class Patient(QMainWindow):
                 (prodid, date.today()))
             if res is None:  return # db error
             self.db.commit()
-        
-    def ck_tables(self):
-        """Check tables eN, chN, prodN -- create if not exist.
-        This should ascertain that the 3 tables are created together."""
-        res = querydb( # eN for consid
-            self,
-            "select tablename from pg_tables where tablename='e{}'".format(
-                self.pid))
-        if res is None:  return # db error
-        if not res: # table not exists
-            try:
-                self.curs.execute(
-                    'create table e{}(id serial primary key)'.format(self.pid))
-                self.curs.execute(
-                    "create table prod{0}(id serial primary key,consid integer "
-                    "not null references e{0},dt timestamp not null default "
-                    "now(),prodid integer not null references products,count "
-                    "numeric(8,2)not null default 1,symp integer not null "
-                    "references symptoms default 1,staff integer not null "
-                    "references staff default 1)"
-                    .format(self.pid))
-                self.curs.execute(
-                    "create table ch{0}(id serial primary key,consid integer "
-                    "not null references e{0},dt timestamp not null default "
-                    "now(),text varchar(1024)not null default '',symp "
-                    "integer not null references symptoms default 1,staff "
-                    "integer not null references staff default 1)".format(
-                        self.pid))
-            except OperationalError as e:
-                self.db_state(e)
-                return
-        self.db.commit()
-        if not self.previnv:
-            self.ck_inv()
 
     def ck_time(self):
         pass
@@ -1066,12 +983,13 @@ class Patient(QMainWindow):
     def get_ptypes(self):
         """Get ptypes -> type colour for htable."""
         self.typecols = {}
-        res = querydb(self, 'select enum_range(null::ptype)')
+        res = querydb(
+            self,
+            'select pt_name,pt_id from ptypes')
         if res is None:  return # db error
-        res = res[0][0]
-        res = res.split(',')
-        res[0] = res[0].replace('{', '')
-        res[-1] = res[-1].replace('}', '')
+        self.ptypes = {}
+        for e in res:
+            self.ptypes[e[0]] = e[1]
         for e in res:
             if e+'_col' in self.options:
                 self.typecols[e] = self.options[e+'_col']
@@ -1365,36 +1283,36 @@ class Patient(QMainWindow):
         """Get patient clinical history if present."""
         try:
             self.curs.execute(
-                'create temporary table tc{}(consid integer not null,okey '
-                'integer not null default 0,dt timestamp not null,type ptype '
-                "not null default 'hst',txt varchar(1024)not null,count "
-                'numeric(8,2)not null default 0,symp integer,unit varchar(5)'
-                "not null default '',staff varchar(5),seq smallint not null,"
-                'prid integer not null default 0)'.format(self.pid))
-            self.curs.execute( # prod  # 0xe2 0x80 0x9e
-                'insert into tc{0}(consid,okey,dt,type,txt,count,symp,staff,'
-                'seq,prid,unit)select consid,id,dt,pr_type,pr_name,count,symp,'
-                'stf_short,enumsortorder,pr_id,u_abbr from prod{0},products,'
-                'units,staff,pg_enum where prodid=pr_id and pr_u=u_id and staff'
-                '=stf_id and enumlabel::text=pr_type::text'.format(
-                    self.pid))
-            self.curs.execute( # ch
-                'insert into tc{0}(consid,okey,dt,txt,symp,staff,seq)'
-                'select consid,id,dt,text,symp,stf_short,enumsortorder from '
-                'ch{0},staff,pg_enum where staff=stf_id and enumlabel::text='
-                "'hst'".format(self.pid))
+                'create temporary table tc(consid int not null,okey int not '
+                'null default 0,dt timestamp not null,ptype int not null '
+                'default %s,txt varchar(1024)not null,count numeric(8,2)not '
+                "null,symp int,unit varchar(5)not null default '',staff "
+                'varchar(5),prid int not null default 0)',
+                (self.ptypes['hist'],))
+            self.curs.execute(
+                'insert into tc(consid,okey,dt,ptype,txt,count,symp,staff,'
+                'prid,unit)select prod_consid,prod_id,prod_dt,pr_type,pr_name,'
+                'prod_count,prod_symp,stf_short,pr_id,u_abbr from events,'
+                'prods,products,units,staff where e_pid=%s and prod_consid='
+                'e_id and prod_prid=pr_id and pr_u=u_id and prod_staff=stf_id',
+                (self.pid,))
+            self.curs.execute(
+                'insert into tc(consid,okey,dt,txt,symp,staff)select '
+                'ch_consid,ch_id,ch_dt,ch_text,ch_symp,stf_short from events,'
+                'clinhists,staff where e_pid=%s and ch_consid=e_id and '
+                'ch_staff=stf_id', (self.pid,))
         except (OperationalError, AttributeError) as e:
             self.db_state(e)
             return
         res = querydb(
             self,
-            'select dt,txt,count,unit,symp,staff,consid,okey,type,'
-            'prid from tc{0} order by dt,seq'.format(self.pid))
+            'select dt,txt,count,unit,symp,staff,consid,okey,type,prid from '
+            'tc order by dt,ptype')
         if res is None:  return # db error
-        # 0 dt 1 txt 2 count 3 unit 4 symp 5 staff 6 consid 7 okey 8 type 9 prid
-        for e in res:
+        # 0 dt 1 txt 2 count 3 u 4 symp 5 staff 6 consid 7 okey 8 type 9 prid
+        for e in res: # hierwei
             self.addch_row(e)
-            if self.dberr:  return
+            ##if self.dberr:  return ?
             if e[9]: # we might have instructions, too
                 self.addch_inst(e[6], e[7])
                 if self.dberr:  return

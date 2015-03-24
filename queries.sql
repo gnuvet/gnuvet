@@ -11,28 +11,10 @@
 -- R redundant?
 -- T transfer data from parent/gaia?
 -- 
--- per Client (add_cli): accC (invC) payC -- entry in patients + eP + prodP
 
-create table acc{}(acc_id serial primary key,acc_pid integer not null references patients,acc_prid integer not null references prod{},acc_npr numeric(9,2)not null,acc_vat integer not null references vats,acc_paid bool default false) -- saecli =
+--ok create table weight%s(w_id serial primary key,w_est boolean not null default FALSE, w_date timestamp not null default current_timestamp,weight numeric(7,3)not null,w_staff integer references staff not null) -- weight =
 
-create table ch{0}(id serial primary key,consid integer not null references e{0},dt timestamp not null default now(),text varchar(1024)not null default '',symp integer not null references symptoms default 1,staff integer not null references staff default 1) -- saecli X -> patient
-create table ch{0}(id serial primary key,consid integer not null references e{0},dt timestamp not null default now(),text varchar(1024)not null default '',symp integer not null references symptoms default 1,staff integer not null references staff default 1) -- patient =
-
-create table e{}(id serial primary key) -- patient X -> saecli
-create table e{}(id serial primary key) -- saecli =
-
-create table inst{0}(id serial primary key,text varchar(300),prodid integer not null references prod{0}) -- patient =
-
-create table inv{0}(inv_id serial primary key,inv_no integer not null references acc{0}(_acc_invno_),inv_pid integer not null references patients,inv_prid integer not null references products,inv_npr numeric(9,2)not null,inv_vat integer not null references vats default 1) -- patient M -> client
-
--- create table pay{0}(pay_id serial primary key,pay_date date not null default current_date,pay_amount numeric(9,2)not null) -- c'd -- patient M -> saecli
-
-create table prod{0}(id serial primary key,consid integer not null references e{0},dt timestamp not null default now(),prodid integer not null references products default {},count numeric(8,2)not null default 1,symp integer not null references symptoms default 1,staff integer not null references staff default 1) -- saecli =
-create table prod{0}(id serial primary key,consid integer not null references e{0},dt timestamp not null default now(),prodid integer not null references products,count numeric(8,2)not null default 1,symp integer not null references symptoms default 1,staff integer not null references staff default 1) -- patient X -> saecli
-
-create table weight%s(w_id serial primary key,w_est boolean not null default FALSE, w_date timestamp not null default current_timestamp,weight numeric(7,3)not null,w_staff integer references staff not null) -- weight =
-
-create temporary table tc{}(consid integer not null,okey integer not null default 0,dt timestamp not null,type ptype not null default 'hst',txt varchar(1024)not null,count numeric(8,2)not null default 0,symp integer,unit varchar(5)not null default '',staff varchar(5),seq smallint not null,prid integer not null default 0) -- patient =
+--ok create temporary table tc{}(consid integer not null,okey integer not null default 0,dt timestamp not null,type ptype not null default 'hst',txt varchar(1024)not null,count numeric(8,2)not null default 0,symp integer,unit varchar(5)not null default '',staff varchar(5),seq smallint not null,prid integer not null default 0) -- patient =
 
 delete from appointments where app_id=%s returning app_id -- appoint =
 delete from weight%s where w_date=%s and weight=%s -- weight =
@@ -230,7 +212,7 @@ select t_id,t_title from titles order by t_id -- saecli =
 select t_title,c_sname,c_fname,c_mname from clients,titles where c_title=t_id and c_id=%s -- saepat =
 select t_title,c_sname,c_mname,c_fname,housen,street,village,city,region,postcode,c_email,baddebt,c_reg,c_last,c_anno from clients,titles,addresses where t_id=c_title and c_address=addr_id and c_id=%s -- client =
 
-select tablename from pg_tables where tablename like 'pay{}' -- client M -> saecli
+--select tablename from pg_tables where tablename like 'pay{}' -- client M -> saecli
 select tablename from pg_tables where tablename='acc{}' -- patient X -> saecli
 select tablename from pg_tables where tablename='acc{}' -- saecli
 select tablename from pg_tables where tablename='ch{}' -- patient
