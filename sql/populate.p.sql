@@ -426,7 +426,7 @@ insert into labels (lb_abbr, lb_txt) values -- not sure yet if i'll use this
 
 insert into paymodes values(1,'Cash',FALSE),(2,'Debit Card',FALSE),(3,'Cheque',TRUE),(4,'Credit Card',TRUE),(5,'Transfer',TRUE),(6,'Direct Debit',TRUE);
 
-insert into ptypes(pt_name)values('med'),('other'),('serv'),('cons'),('hist'),('good'),('food'),('vac');
+insert into ptypes(pt_name)values('cons'),('hist'),('med'),('serv'),('good'),('food'),('other'); -- vac is a serv
 
 -- examples, might be imported from diff source if code available
 -- worst case print, scan, OCR, edit -> table
