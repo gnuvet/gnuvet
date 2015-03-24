@@ -285,6 +285,13 @@ class Client(QMainWindow):
         self.w.plist.set_colwidth(6, 50)
         self.w.plist.setFocus()
 
+    def get_vats(self):
+        if not hasattr(self, 'vats'):
+            self.vats = querydb(
+                self,
+                'select vat_id,vat_name,vat_rate from vats where not vat_obs')
+            if self.vats is None:  return # db error
+    
     def gv_quit(self, quitnow=False):
         """Signal children if quitting GnuVet or not."""
         self.shutdown = quitnow
