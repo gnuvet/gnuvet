@@ -283,7 +283,7 @@ create table labels(
  lb_abbr varchar(15) unique,
  lb_txt varchar(255) unique);
 
-create table pay_modes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
+create table paymodes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
 
 create table products(
  pr_id serial primary key,
@@ -394,7 +394,7 @@ create table invoices( -- hierwei
 -- cave 0er Jahre: select length(n::text)<10 -> +0
 -- wie invoicen?
 
-create table payments(pay_id serial primary key,pay_cid int not null default 1 references clients,pay_amount numeric(9,2)not null default 0,pay_dt timestamp not null default current_timestamp,pay_mode int not null default 1 references pay_modes,pay_ref varchar not null default '');
+create table payments(pay_id serial primary key,pay_cid int not null default 1 references clients,pay_amount numeric(9,2)not null default 0,pay_dt timestamp not null default current_timestamp,pay_mode int not null default 1 references paymodes,pay_regd date,pay_ref varchar not null default '');
 
 create table appointments(
  app_id serial primary key,
@@ -453,13 +453,6 @@ create table vaccs(
  v_type int not null references vaccinations,
  v_chb varchar(30) not null default '',
  v_dt date not null); -- tolerable redundance
-
-create table payments(
- pay_id serial primary key,
- pay_cid int not null references clients,
- pay_date date not null,
- pay_regd date,
- pay_mode int not null references paymodes);
 
  -- hierwei
 -- create table receipts(recpt_id serial primary key, recpt_date date not null, recpt_cid int not null references clients, recpt_sum numeric(9,2) not null, recpt_paymode varchar(30));
