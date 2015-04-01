@@ -115,7 +115,7 @@ create table clients(
 -- c_mobile2 varchar(30) not null default '',
  c_email varchar(120) not null default '',
  baddebt boolean not null default False,
- c_reg date not null,
+ c_reg date not null default current_date,
  c_last timestamp not null default current_timestamp,
  c_anno varchar(255) not null default '');
 
@@ -198,7 +198,7 @@ create table patients(
  sex sex,
  neutd boolean default False,
  vicious boolean not null default False,
- p_reg date,
+ p_reg date default current_date,
  p_anno varchar(255) not null default '',
  loc int references locations,
  identno varchar(20),
@@ -283,7 +283,7 @@ create table labels(
  lb_abbr varchar(15) unique,
  lb_txt varchar(255) unique);
 
-create table paymodes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
+create table pay_modes(pm_id serial primary key,pm_mode varchar(20) not null,pm_ck bool not null default TRUE);
 
 create table products(
  pr_id serial primary key,
@@ -393,6 +393,8 @@ create table invoices( -- hierwei
  inv_no int not null);
 -- cave 0er Jahre: select length(n::text)<10 -> +0
 -- wie invoicen?
+
+create table payments(pay_id serial primary key,pay_cid int not null default 1 references clients,pay_amount numeric(9,2)not null default 0,pay_dt timestamp not null default current_timestamp,pay_mode int not null default 1 references pay_modes,pay_ref varchar not null default '');
 
 create table appointments(
  app_id serial primary key,
