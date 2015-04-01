@@ -560,8 +560,8 @@ class Weight(QMainWindow):
     def fetchdata(self): # WEIGHT
         self.weights = querydb(
             self,
-            'select w_date,weight,w_est,w_staff from weights where w_pid=%s '
-            'order by w_date', (self.pid,))
+            'select w_dt,w_weight,w_est,w_staff from weights where w_pid=%s '
+            'order by w_dt', (self.pid,))
         if self.weights is None:  return # db error
         self.lweight = self.weights[-1][:3]
 
@@ -644,7 +644,7 @@ class Weight(QMainWindow):
         weight = str(self.w.entrydelDd.currentText()).split()[2]
         suc = querydb(
             self,
-            'delete from weights where w_pid=%s and w_date=%s and weight=%s',
+            'delete from weights where w_pid=%s and w_dt=%s and w_weight=%s',
             (self.pid, wdt, D(weight)))
         if suc is None:  return # db error
         self.db.commit()

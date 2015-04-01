@@ -174,7 +174,7 @@ insert into suppliers(s_name,s_address,s_tel,s_fax,s_mobile,s_email,s_rep)values
  'vet@vetoquinol.co.uk','Mr Nevar T.B. Shangarathi'),
  ('Kruuse',23,'+3x989 123 456','+3x989 456 123','','info@kruuse.dk','');
 
-insert into insts(in_prodid,in_text)values((select prod_id from prods where prod_consid=7 order by prod_consid desc limit 1),'Give 1 tablet twice daily for 7 days');
+insert into insts(in_prodid,in_text)values((select prod_id from prods where prod_consid=7 order by prod_id desc limit 1),'Give 1 tablet twice daily for 7 days');
 
 insert into invoices(inv_no)values(1205140001),(1207280001);
 

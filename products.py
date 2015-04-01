@@ -167,20 +167,15 @@ class Products(QMainWindow):
             parent.gvquit.connect(self.gv_quit)
             parent.dbstate.connect(self.db_state)
             self.helpsig.connect(parent.helpsig)
-            for e in parent.types.keys():
-                setattr(self, 'type' + e, parent.types[e])
+            ## for e in parent.types.keys():
+            ##     setattr(self, 'type' + e, parent.types[e])
+            self.ptypes = parent.ptypes # take care client not yet impl!
             ## self.startdt = parent.startdt # nothing lost here
             self.rundt = parent.rundt
             self.timer = parent.timer
         else: # devel else
-            ## self.typeother = 1
-            ## self.typemed   = 2
-            ## self.typeserv  = 3
-            ## self.typegood  = 4
-            ## self.typefood  = 5
-            ## self.typecons  = 6
-            ## self.typehist  = 7
-            ## self.typevacc  = 8
+            self.ptypes = dict(
+                other=7, med=3, serv=4, good=5, food=6, cons=1, hist=2, vac=8)
             self.rundt = datetime.now()
             self.timer = Ticker(self)
             self.timer.run()
@@ -254,10 +249,7 @@ class Products(QMainWindow):
         else:
             self.markup = 0
             self.toggle_markup(0)
-        self.vats = querydb(
-            self,
-            'select vat_id,vat_name,vat_rate from vats where not vat_obs')
-        if self.vats is None:  return # db error
+        self.vats = parent.vats
         self.vat = 0
         if len(self.vats) > 1: # a country in this world without vat? SA
             if 'stdvat' in self.options:
@@ -773,12 +765,12 @@ class Products(QMainWindow):
             'and pr_type=%s {}order by pr_name')
         addit = str(self.w.pLe.text().toLatin1()).lower()
         if not addit:
-            query = query.format('')
-            res = querydb(self, query, (self.typecons,))
+            query = query.format('')#HIERWEI
+            res = querydb(self, query, (self.ptypes['cons'],))
         else:
             addit = '%{}%'.format(addit)
             query = query.format('and (pr_name ilike %s or pr_short ilike %s) ')
-            res = querydb(self, query, (self.typecons, addit, addit))
+            res = querydb(self, query, (self.ptypes['cons'], addit, addit))
         self.waitstart()
         if res is None:  return # db error
         self.fill_table(res)
@@ -809,7 +801,8 @@ class Products(QMainWindow):
         if not prod:
             query = query.format('pr_name')
             self.waitstart()
-            self.curs.execute(query, ('%', self.typegood, self.typefood))
+            self.curs.execute(
+                query, ('%', self.ptypes['good'], self.ptypes['food']))
             self.fill_table(self.curs.fetchall())
         else:
             conds = (
@@ -822,8 +815,8 @@ class Products(QMainWindow):
             for tup in conds:
                 try:
                     self.curs.execute(
-                        query.format(
-                            tup[0]), (tup[1], self.typegood, self.typefood))
+                        query.format(tup[0]),
+                        (tup[1], self.ptypes['good'], self.ptypes['food']))
                     self.fill_table(self.curs.fetchall())
                 except OperationalError as e:
                     self.db_state(e)
@@ -870,8 +863,8 @@ class Products(QMainWindow):
             for tup in conds:
                 try:
                     self.curs.execute(
-                        query.format(
-                            tup[0]), (tup[1], self.typevacc, self.typecons))
+                        query.format(tup[0]),
+                        (tup[1], self.typevacc, self.ptypes['cons']))
                     self.fill_table(self.curs.fetchall())
                 except OperationalError as e:
                     self.db_state(e)
@@ -1122,7 +1115,7 @@ class Products(QMainWindow):
         self.dta.emit(
             (self.rundt, self.startdt,
              self.prinfo[self.selrow],#'id''type''uid''instr''mark'
-             (Decimal(str(self.w.priceSb.value())), self.vat),
+             (Decimal(str(self.w.priceSb.value())), self.vat+1),
              self.amount, self.symp, txt))
         ch_conn(self, 'dta')
         self.instruct = False

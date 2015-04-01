@@ -146,6 +146,7 @@ class Client(QMainWindow):
         self.w.lLb.setText(logname)
         self.cli_data()
         self.get_pats()
+        ## self.get_vats() # hierwei: make this dep on using product
 
     def addpat(self):
         print('client.addpat not yet implemented')
@@ -311,10 +312,26 @@ class Client(QMainWindow):
     def merge(self):
         print('client.merge not yet implemented')
 
-    def payment(self):
-        ## print('client.payment not yet implemented')
-        ## ck balance: acc_paid false and null.
-        pass
+    def payment(self): # hierwei:  moved here from patient
+        if not hasattr(self, 'payment'):
+            import payment
+        self.paym = payment.Payment(self, self.db, self.options,
+                                    self.cid, self.pid, self.staffid)
+        self.paym.move(self.x()+50, self.y()+40)
+        self.paym.show()
+        invno = querydb(self,'select max(inv_no)from invoices')
+        if invno is None:  return # db error
+        ninvno = self.startdt.strftime('%Y%m%d0001')
+        if ninvno > invno:
+            invno = ninvno
+        else:
+            invno += 1
+        self.invno_id = querydb(
+            self,
+            'insert into invoices(inv_no)values(%s)returning invoice_id',
+            (invno,))
+        if self.invno_id is None:  return # db error
+        self.invno_id = self.invno_id[0][0]
         
     def rip(self):
         print('client.rip not yet implemented')

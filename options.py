@@ -37,16 +37,17 @@ defaults = {
     'usemark': True, # False for D,AT; True for UK, ...
     'usestock': False,
     'usesymp': True,
-    # clinhist colours
-    'other_col': 'darkRed',
-    'med_col':   'darkBlue',
-    'serv_col':  'darkGreen',
-    'good_col':  'darkMagenta',
-    'food_col':  'darkYellow',
-    'cons_col':  'darkCyan',
-    'hist_col':  'black',
+    # clinhist colours -- put this into db
+    ## 'other_col': 'darkRed',
+    ## 'med_col':   'darkBlue',
+    ## 'serv_col':  'darkGreen',
+    ## 'good_col':  'darkMagenta',
+    ## 'food_col':  'darkYellow',
+    ## 'cons_col':  'darkCyan',
+    ## 'hist_col':  'black',
+    'usehistcolours': True,
     # alternatively always use black (delete or comment out above options)
-    # and setAlternatingRowColors()
+    # and maybe setAlternatingRowColors()
     'vaccwarn':  7, # days before due to start warn
     }
 

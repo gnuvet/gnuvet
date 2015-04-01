@@ -11,6 +11,7 @@ startdt: datetime for entry -> this to save in db for one consid?
 # version 3 or later (GPLv3+ in short).  See the file LICENSE for information.
 
 # TODO:
+# remove count (1) from history
 # see playground re payment and balance before continuing here
 # add adding text w/o consult for e.g. calling information (vacc reminders etc)
 #     s. products.add_hist()
@@ -91,9 +92,9 @@ class Patient(QMainWindow):
         self.w.setupUi(self)
         #    instance vars
         self.conns = {} # pyqt bug: disconnect() w/o arg can segfault
-        self.sigs = {}
-        ## self.cdata = [] # row->dt, hierwei obsoletable?
-        self.row2data = [] # htable.row->(consid,okey,type,dt)
+        self.sigs = {} # dto
+        self.row2data = [] # htable.row->(consid,okey,type,dt)  hierwei
+        # only things used by now from row2data ar consid and dt...
         self.symptoms = {}
         self.w.htable.set_headers(
             [
@@ -202,15 +203,14 @@ class Patient(QMainWindow):
                 self.gaia = parent
             else:
                 self.gaia = parent.gaia
-            self.dbA.triggered.connect(parent.db_connect)
-            self.aboutA.triggered.connect(parent.about)
-            parent.gvquit.connect(self.gv_quit)
-            parent.dbstate.connect(self.db_state)
-            self.savestate.connect(parent.state_write)
-            self.helpsig.connect(parent.gv_help)
-            self.db = parent.db
-            self.staffid = parent.staffid
-            ## self.ptypes = self.gaia.ptypes
+            self.dbA.triggered.connect(parent.db_connect) # gaia?
+            self.aboutA.triggered.connect(parent.about) # gaia?
+            parent.gvquit.connect(self.gv_quit) # gaia?
+            parent.dbstate.connect(self.db_state) # gaia?
+            self.savestate.connect(parent.state_write) # gaia?
+            self.helpsig.connect(parent.gv_help) # gaia?
+            self.db = parent.db # gaia?
+            self.staffid = parent.staffid # gaia?
         else:
             import dbmod
             dbh = dbmod.Db_handler('enno')
@@ -219,7 +219,7 @@ class Patient(QMainWindow):
                 self.db_state(self.db)
                 return # ?
             self.staffid = 1
-            # devel:
+            self.gaia = 'gaia'
             ##self.db.set_client_encoding('UTF-8')
         #    WIDGET CONNECTIONS # ?
         #    BUTTON CONNECTIONS
@@ -297,9 +297,11 @@ class Patient(QMainWindow):
                 self.markups[e[0]] = dict(n=e[1], r=e[2])
         if self.pid:
             self.pat_data()
-            if self.dberr:  return # ???
+            if self.dberr:  return
             self.show()
-            self.w.htable.select_row(row=-1)
+            if self.prevdata: # not work
+                print
+                self.w.htable.select_row(row=-1)
         else: # devel else
             print('No pid.')
         
@@ -330,6 +332,7 @@ class Patient(QMainWindow):
             self.add_prod(prod)
 
     def add_prod(self, prod=None, action='p'):
+        self.get_vats()
         if not hasattr(self, 'productw'):
             import products
             if action == 'hst':
@@ -351,6 +354,7 @@ class Patient(QMainWindow):
 
     def add_vac(self):
         """Add new vaccination."""
+        self.get_vats()
         if not hasattr(self, 'productw'):
             import products
             self.productw = products.Products(self, action='v')
@@ -360,20 +364,6 @@ class Patient(QMainWindow):
         self.productw.move(self.x()+50, self.y()+40)
         ch_conn(self, 'prodclosed', self.productw.closed, self.pb_enable)
         self.productw.show()
-
-    def addch_inst(self, consid, okey): # hierwei dont func
-        # also rename addch_ to getch_
-        """Construct list to insert medication instructions into htable."""
-        inst = querydb(
-            self,
-            'select prod_id,in_text from events,insts,prods where e_pid=%s and '
-            'prod_consid=e_id and prod_prid=%s',
-            (self.pid, okey))
-        if inst is None:  return # db error
-        if not inst:  return # no entry
-        inst = inst[0][0]
-        self.w.htable.append_row(['', inst, '', '', '~', ''])
-        self.row2data.append((consid, okey, 0, self.lastdt))
         
     def addch_row(self, l, pos=None):
         """Construct list to insert one row of data into htable."""
@@ -390,9 +380,7 @@ class Patient(QMainWindow):
                 if not e:
                     e = ''
                 if k == 2:
-                    if e == '':
-                        pass
-                    else:
+                    if e != '':
                         e = self.ck_num(e)
                 trow.append(str(e))
             elif k == 6:
@@ -402,43 +390,42 @@ class Patient(QMainWindow):
                 toinsert.append(l[0])
                 self.row2data.insert(pos, tuple(toinsert))
         self.w.htable.insert_row(trow, pos)
-        if l[8] != 'hst':
+        if l[8] != 2:
             for c in self.w.htable.lrows[-1]:
                 c.setStyleSheet(
                     self.w.htable.gcellss.format(
-                        'white', self.typecols[l[8]], 'lightgray'))
+                        'white', self.ptypes[l[8]], 'lightgray'))
         if self.tt:
             self.w.htable.lrows[-1][4].setToolTip(self.tt)
     
     def book_cons(self, args):
-        """Book consid, startdt, cons, amount, price, vat, symptom, hist."""
+        """Book consultation.  Called from products."""
         self.productw.close()
-        self.get_vats()
         if self.dberr:  return
         self.consid = self.ck_consid()
         if self.consid is None:  return # db error
-        self.startdt = args[0] # rundt from productw
+        self.startdt = args[1] # rundt from productw
         self.rundt = args[0]
         self.symp = args[5]
         prodid = querydb(
             self,
-            'insert into prod{}(consid,dt,prodid,count,symp,staff)values'
-            '(%s,%s,%s,%s,%s,%s)returning id'.format(self.pid),
-            (self.consid, self.startdt, args[2]['id'],
+            'insert into prods(prod_consid,prod_dt,prod_prid,prod_count,'
+            'prod_symp,prod_staff)values(%s,%s,%s,%s,%s,%s)returning prod_id',
+            (self.consid, self.rundt, args[2]['id'], # logically startdt but =
              args[4], args[5], self.staffid))
         if prodid is None:  return # db error
         prodid = prodid[0][0]
         chid = querydb(
             self,
-            'insert into ch{}(consid,dt,text,symp,staff)values(%s,%s,%s,%s,%s)'
-            'returning id'.format(self.pid),
+            'insert into clinhists(ch_consid,ch_dt,ch_text,ch_symp,ch_staff)'
+            'values(%s,%s,%s,%s,%s)returning ch_id',
             (self.consid, args[0], str(args[6]), args[5], self.staffid))
         if chid is None:  return # db error
         res = querydb(
             self,
-            'insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values'
-            '(%s,%s,%s,%s)returning acc_id'.format(self.cid),
-            (self.pid, prodid, args[3][0], args[3][1]+1))
+            'insert into accs(acc_cid,acc_prid,acc_npr,acc_vat)values'
+            '(%s,%s,%s,%s)returning acc_id',
+            (self.cid, prodid, args[3][0], args[3][1]))
         if res is None:  return # db error
         self.update_balance(args[3][0], args[4], self.vats[args[3][1]][2])
         self.db.commit() # cons and hist booked
@@ -455,54 +442,136 @@ class Patient(QMainWindow):
         if res is None:  return # db error
         res = res[0][0]
         nrow.extend([res, args[4], '', args[5], self.logshort, self.consid,
-                    prodid, 'con'])
+                    prodid, 1])
         #startdt pr_name count symp stfshrt consid prod.id typecons
         self.addch_row(nrow, pos) # cons in htable
         if pos is not None:  pos += 1
         #rundt hist count=None symp stfshrt consid ch.id typehist
-        self.addch_row( # hierwei:
+        self.addch_row(
             [args[1], args[6], None, '', args[5], self.logshort, # was args[0]
-             self.consid, chid, 'hst'], pos) # hist in htable
+             self.consid, chid, 2], pos) # hist in htable
         self.w.htable.rows2contents(-2)
         if pos is None:  pos = -1
         self.w.htable.select_row(row=pos)
         self.prevdata = True
-        if self.prod_queue and self.prod_queue != 'con': # hierwei ck prod_queue
-            prod = self.prod_queue
+        if self.prod_queue and self.prod_queue != 'con':# hierwei ck prod_queue
+            prod = self.prod_queue                      # and 'con'
             self.prod_queue = None
             self.add_prod(prod)
         else:
             self.reset()
 
+    def book_event(self, args): # 150324
+        # rundt startdt prinfo{id type uid instr mark}
+        #     (nprice vat) amount symp insttxt
+        self.productw.close()
+        if self.dberr:  return # hierwei ck this set by productw? impl gaia
+        self.consid = self.ck_consid()
+        if self.consid is None:  return # db error
+        self.startdt = args[1] # rundt from productw
+        self.rundt   = args[0] # gets updated by ticker
+        self.symp    = args[5]
+        prodid = querydb(
+            self,
+            'insert into prods(prod_consid,prod_dt,prod_prid,prod_count,'
+            'prod_symp,prod_staff)values(%s,%s,%s,%s,%s,%s)returning prod_id',
+            (self.consid, self.rundt, args[2]['id'], args[4], args[5],
+             self.staffid))
+        if prodid is None:  return # db error
+        prodid = prodid[0][0]
+        res = None
+        if args[2]['type'] == 1:
+            res = self.book_event_cons(args[0], str(args[6]), args[5])
+            if res is None:  return # db error
+            chid = res[0][0]
+        res = querydb(
+            self,
+            'insert into accs(acc_cid,acc_prid_acc_npr,acc_vat)values'
+            '(%s,%s,%s,%s)returning acc_id',
+            (self.cid, prodid, args[3][0], args[3][1]))
+        if res is None:  return # db error
+        if args[2]['type'] in (3, 5, 6):
+            if 'usestock' in self.options and self.options['usestock']:
+                res = querydb(
+                    self,
+                    'select pr_stock from products where pr_id=%s', (prodid,))
+                if res is None:  return # db error
+                if res[0][0]:
+                    stock = querydb(
+                        self,
+                        'update products set pr_stock=pr_stock-%s where pr_id'
+                        '=%s returning pr_stock', (args[4], prodid))
+                    if stock is None:  return # db error
+                    self.ck_stock(prodid, stock[0][0])
+            # hierwei ckin book_prod if poss
+        self.db.commit() # booked, now start display in htable
+        self.update_balance(args[3][0], args[4], self.vats[args[3][1]][2])
+        # hierwei: how this next when consid fixed?
+        if self.startdt < self.lastdt:
+            pos = self.findrow(self.startdt)
+        else:
+            pos = None
+        if not self.prevdata: # prevdata unnec when building htab anew?
+            self.w.htable.clear()
+        ## nrow = [args[1]] # startdt  # hierwei cons and prod w startdt?
+        res = querydb(
+            self,
+            'select pr_name,pr_type from products where pr_id=%s',
+            (args[2]['id'],))
+        if res is None:  return # db error
+        # pr_name amount unit symp log consid okey ptype
+        nrow = [args[1], res[0][0], args[4], '', args[5], self.logshort,
+                self.consid, prodid, res[0][1]] ### fits cons, re unit HIERWEI
+        #startdt pr_name count unit symp stfshrt consid prod.id type
+        self.addch_row(nrow, pos) # cons in table
+        if pos is not None:  pos += 1
+        #rundt hist count=None symp stfshort consid ch.id histtype
+        if (type == cons): hierwei
+        self.addch_row([args[1], args[6], None, '', args[5], self.logshort,
+                        self.consid, chid, 2], pos)
+        # hist in htable ### fits cons+hist # hierwei ck this
+        self.w.htable.rows2contents(-2)
+        self.w.htable.select_row(pos and pos or -1)
+        self.prevdata = True
+        if self.prod_queue and self.prod_queue != 'cons':
+            prod = self.prod_queue
+            self.prod_queue = None
+            self.add_prod(prod)
+        else:
+            self.reset() # hierwei
+
+    def book_event_cons(self, dt, text, symp):
+        return querydb(
+            self,
+            'insert into clinhists(ch_consid,ch_dt,ch_text,ch_symp,'
+            'ch_staff)values(%s,%s,%s,%s,%s)returning ch_id',
+            (self.consid, dt, text, symp, self.staffid))
+
     def book_hist(self, args):
         pass
     
     def book_prod(self, args):
-        """Book product."""
-        # rundt startdt prinfo{id type uid instr mark}
-        #     (nprice vat) amount symp insttxt
+        """Book product.  Called from products."""
         self.productw.close()
-        self.get_vats()
         if self.dberr:  return
-        if not self.consid:
-            self.consid = self.ck_consid()
+        self.consid = self.ck_consid()
         if self.consid is None:  return # db error
         self.startdt = args[1]
         self.rundt = args[0]
         self.symp = args[5]
         prodid = querydb(
             self,
-            'insert into prod{}(consid,dt,prodid,count,symp,staff)values'
-            '(%s,%s,%s,%s,%s,%s)returning id'.format(self.pid),
+            'insert into prods(prod_consid,prod_dt,prod_prid,prod_count,'
+            'prod_symp,prod_staff)values(%s,%s,%s,%s,%s,%s)returning prod_id',
             (self.consid, self.rundt, args[2]['id'],
              args[4], args[5], self.staffid))
         if prodid is None:  return # db error
         prodid = prodid[0][0]
         res = querydb(
             self,
-            'insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values'
-            '(%s,%s,%s,%s)returning acc_id'.format(self.cid),
-            (self.pid, prodid, args[3][0], args[3][1]+1))
+            'insert into accs(acc_cid,acc_prid,acc_npr,acc_vat)values'
+            '(%s,%s,%s,%s)returning acc_id',
+            (self.cid, prodid, args[3][0], args[3][1]))
         if res is None:  return # db error
         if 'usestock' in self.options and self.options['usestock']:
             res = querydb(
@@ -530,13 +599,12 @@ class Patient(QMainWindow):
             if self.dberr:  return
             okey = querydb(
                 self,
-                'insert into inst{}(text,prodid)values(%s,%s)'
-                'returning id'.format(self.pid),
-                (args[6], prodid))
+                'insert into insts values(%s,%s)returning in_prodid', 
+                (prodid, args[6]))
             if okey is None:  return # db error
             okey = okey[0][0]
-            self.w.htable.insert_row(['', args[6], '', '', '~', ''], self.row+2)
-            self.row2data.insert(self.row+2, (self.consid, okey, 0, self.rundt))
+            self.w.htable.insert_row(['',args[6],'','','~',''], self.row+2)
+            self.row2data.insert(self.row+2, (self.consid,okey,0,self.rundt))
             self.productw.reset_instr()
         self.db.commit()
         self.w.htable.select_row(row=self.row+2)
@@ -567,25 +635,25 @@ class Patient(QMainWindow):
             self.symp = args[5] # should be 1, except for therapeutic vacc
         prodid = querydb(
             self,
-            'insert into prod{}(consid,dt,prodid,count,symp,staff)values'
-            '(%s,%s,%s,%s,%s,%s)returning id'.format(self.pid),
+            'insert into prods(prod_consid,prod_dt,prod_prid,prod_count,'
+            'prod_symp,prod_staff)values(%s,%s,%s,%s,%s,%s)returning prod_id',
             (self.consid, self.startdt, args[2]['id'],
              args[4], args[5], self.staffid))
         if prodid is None:  return # db error
         prodid = prodid[0][0]
         chid = querydb(
             self,
-            'insert into ch{}(consid,dt,text,symp,staff)values(%s,%s,%s,%s,%s)'
-            'returning id'.format(self.pid),
+            'insert into clinhists(ch_consid,ch_dt,ch_text,ch_symp,ch_staff)'
+            'values(%s,%s,%s,%s,%s)returning ch_id',
             (self.consid, self.rundt, str(args[6]), args[5], self.staffid))
         if chid is None:  return # db error
         res = querydb(
             self,
-            'insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values'
-            '(%s,%s,%s,%s)returning acc_id'.format(self.cid),
-            (self.pid, prodid, args[3][0], args[3][1]+1))
+            'insert into accs(acc_cid,acc_prid,acc_npr,acc_vat)values'
+            '(%s,%s,%s,%s)returning acc_id',
+            (self.cid, prodid, args[3][0], args[3][1]))
         if res is None:  return # db error
-        vtype = querydb( # hierwei this coulbe put into stored proc
+        vtype = querydb(
             self,
             'select vac_type,val_days from vaccinations,validities where '
             'vac_validity=val_id and vac_sid=%s', (args[2]['id'],))
@@ -626,32 +694,31 @@ class Patient(QMainWindow):
                 if stock is None:  return # db error
                 self.ck_stock(prid, stock[0][0])
         self.update_balance(args[3][0], args[4], self.vats[args[3][1]][2])
-        self.db.commit() # vacc and hist booked
+        self.db.commit() # vacc booked
         if self.startdt < self.lastdt:
             pos = self.findrow(self.startdt)
         else:
             pos = None
         if not self.prevdata:
             self.w.htable.clear()
-        nrow = [self.startdt]
         res = querydb( # "prodid"
             self,
             'select pr_name,pr_u from products where pr_id=%s',
             (args[2]['id'],))
         if res is None:  return # db error
         res = res[0]
-        nrow.extend([res[0], args[4], self.units[res[1]]['ab'], args[5],
-                     self.logshort, self.consid, prodid, 'vac'])
+        nrow = [self.startdt, res[0], args[4], self.units[res[1]]['ab'],
+                args[5], self.logshort, self.consid, prodid, 8]
         self.addch_row(nrow, pos)
         if pos is not None:  pos += 1
         self.addch_row(
             [self.rundt, args[6], None, '', args[5], self.logshort,
-             self.consid, chid, 'hst'], pos) # hist in htable
+             self.consid, chid, 2], pos) # hist in htable
         self.w.htable.rows2contents(-2)
         if pos is None:  pos = -1
         self.w.htable.select_row(row=pos)
         self.prevdata = True
-        self.ck_vac()
+        self.get_vac()
         self.reset() # ?
 
     def ck_autocon(self, prod): # hierwei check False, '' and such
@@ -669,97 +736,72 @@ class Patient(QMainWindow):
         else:
             self.add_prod(prod)
     
-    def ck_balance(self): # hierwei rewrite nec
+    def ck_balance(self):
         """Calculate current balance of client and patient."""
-        pats = querydb(self, 'select p_id from patients where p_cid=%s',
-                       (self.cid,))
-        if pats is None:  return # db error
-        pats = [e[0] for e in pats]
         cbal = pbal = Decimal('0.00')
-        for p in pats:
-            res = querydb(
-                self,
-                "select tablename from pg_tables where tablename='prod{}'"
-                .format(p))
-            if res is None:  return # db error
-            if not res:
-                continue
-            res = querydb(
-                self,
-                "select tablename from pg_tables where tablename='acc{}'"
-                .format(self.cid))
-            if res is None:  return # db error
-            if not res:
-                break
-            addend = querydb(
-                self,
-                'select acc_pid,acc_npr,vat_rate,count from acc{0},prod{1},'
-                'vats where acc_vat=vat_id and acc_prid=prod{1}.id and '
-                'acc_pid=%s'.format(
-                    self.cid, p), (p,))
-            if addend is None:  return # db error
-            for e in addend:
-                if e[0] == self.pid:
-                    pbal += money(gprice(e[1], e[2]), e[3])
-                else:
-                    cbal += money(gprice(e[1], e[2]), e[3])
+        addend = querydb(
+            self,
+            'select acc_npr,vat_rate,e_pid from accs,vats,prods,events where '
+            'acc_cid=%s and acc_vat=vat_id and acc_prid=prod_id and '
+            'e_id=prod_consid', (self.cid,))
+        if addend is None:  return # db error
+        for e in addend:
+            if e[2] == self.pid:
+                pbal += gprice(e[0], e[1])
+            else:
+                cbal += gprice(e[0], e[1])
         cbal += pbal
         self.w.pbalanceLb.setText(str(pbal))
         self.w.cbalanceLb.setText(str(cbal))
 
-    def ck_ch(self):
+    def ck_ch(self): # Think this is overkill
         """Check if previous data present."""
-        res = querydb(
+        prev = querydb(
             self,
-            "select tablename from pg_tables where tablename='ch{}'".format(
-                self.pid))
-        if res is None:  return # db error
-        prev = []
-        if res:
-            prev.extend(querydb(self,'select max(id)from ch{}'.format(
-                self.pid)))
-            if prev is None:  return # db error
-            if prev and prev[0][0]:  return True # data in ch
-        res = querydb(
+            'select max(ch_id)from clinhists,events where ch_consid=e_id '
+            'and e_pid=%s', (self.pid,))
+        if prev is None:  return # db error
+        if prev[0] and prev[0][0]:  return True
+        ##self.curs.execute("set client_encoding='UTF-8'")
+        prev = querydb(
             self,
-            "select tablename from pg_tables where tablename='prod{}'".format(
-                self.pid))
-        if res is None:  return # db error
-        if not res:  return False # no such table
-        res = querydb(self, 'select max(id)from prod{}'.format(self.pid))
-        if res is None:  return # db error
-        if res and res[0][0]: return True # data in prod
+            'select max(prod_id)from prods,events where prod_consid=e_id '
+            'and e_pid=%s', (self.pid,))
+        if prev is None:  return # db error
+        if prev[0] and prev[0][0]:  return True
         return False
     
-    def ck_consid(self):
+    def ck_consid(self): # HIERWEI this should only be devel
         """Check: create new consid or use existing one w/o corresp entries."""
-        consid = querydb(self, 'select max(id)from e{}'.format(self.pid))
+        if self.consid:  return
+        consid = querydb(
+            self,
+            'select max(e_id)from events where e_pid=%s',(self.pid,))
         if consid is None:  return # db error
-        if not consid[0][0]: # [(None,)]
+        if not consid[0][0]: # [(None,)] ???
             consid = querydb(
                 self, 
-                'insert into e{} default values returning id'.format(
-                    self.pid))
+                'insert into events(e_pid)values(%s)returning e_id',
+                (self.pid,))
             if consid is None:  return # db error
             print('no consid, created and returning {}'.format(consid[0][0]))
             return consid[0][0]
         consid = consid[0][0]
-        res = querydb(
-            self,
-            'select count(id)from prod{} where consid=%s'.format(self.pid),
-            (consid,))
+        res = querydb(self,
+                      'select count(prod_id)from prods where prod_consid=%s',
+                      (consid,))
         if res is None:  return # db error
         res.extend(querydb(
             self,
-            'select count(id)from ch{} where consid=%s'.format(self.pid),
+            'select count(ch_id)from clinhists where ch_consid=%s',
             (consid,)))
         if res is None:  return # db error
         for e in res:
             if any(e): # consid is in use
                 consid = querydb(
                     self,
-                    'insert into e{} default values returning id'.format(
-                        self.pid))
+                    'insert into events(e_pid)values(%s)returning e_id',
+                    (self.pid,))
                 if consid is None:  return # db error
                 return consid[0][0]
         print('using unused consid: {}'.format(consid))
@@ -772,68 +814,38 @@ class Patient(QMainWindow):
         else:
             return num.normalize()
         
-    def ck_stock(self, prodid, stock): # hierwei, check this
+    def ck_stock(self, prodid, batch=None): # hierwei, check this
         """Check if prod has to be re-ordered."""
-        limit = querydb(
-            self,
-            'select pr_limit from products where pr_id=%s', (prodid,))
-        if limit is None:  return # db error
-        if not limit or not limit[0][0]:  return
-        limit = limit[0][0]
-        if stock < limit:
-            res = querydb(
+        if 'usestock' in self.options and self.options['usestock']:
+            limit = querydb(
                 self,
-                'insert into toorder(o_prid,o_date)values(%s,%s)',
-                (prodid, date.today()))
-            if res is None:  return # db error
-            self.db.commit()
+                'select pr_limit from products where pr_id=%s', (prodid,))
+            if limit is None:  return # db error
+            if not limit or not limit[0][0]:  return
+            limit = limit[0][0]
+            st = querydb(
+                self,
+                'select st_num from stocks where st_prid=%s{}'.format(
+                    batch and ' and st_batch={}'.format(batch) or ''))
+            if st is None:  return # db error
+            st = st[0][0]
+            if not st:  return
+            if st < limit:
+                res = querydb(
+                    self,
+                    'insert into toorder(o_prid,o_date)values(%s,%s)returning '
+                    'o_prid', (prodid, date.today()))
+                if res is None:  return # db error
 
     def ck_time(self):
         pass
-    
-    def ck_vac(self): # hierwei adapt 2 new tables (vdues)
-        """Check vaccinations of patient into vacLb."""
-        res = querydb(
-            self,
-            'select vt_type,vd_vdue from vdues,vtypes where '
-            'vd_type=vt_id and vd_pid=%s', (self.pid,))
-        if res is None:  return # db error
-        if not res:
-            self.w.vachLb.setText(self.tr('n/a'))
-            return
-        vaccs = {} # '
-        for e in res:
-            vaccs[e[0]] = e[1]
-        tmp = '<table border="0" cellpadding="2">'
-        today = date.today()
-        for e in sorted(vaccs.keys()):
-            tmp += '<tr><td colspan="2">{}<tr><td><td>{} '.format(
-                e, vaccs[e].strftime('%d.%m.%Y'))
-            if not self.rip:
-                if vaccs[e] > (today + timedelta(40)):
-                    tmp += self.tr('ok')
-                elif vaccs[e] >= today:
-                    tmp += '<font color="green">' + self.tr('due') + '</font>'
-                else:
-                    tmp += '<font color="red">' + self.tr('overdue') + '</font>'
-        tmp += '</table>'
-        self.w.vachLb.setText(tmp)
-        self.w.vachLb.adjustSize()
-        self.w.vscrArea = QScrollArea(self.w.centralwidget)
-        self.w.vscrArea.setGeometry(10, 210, 230, 81)
-        self.w.vscrArea.setFrameShape(6) # StyledPanel
-        self.w.vscrArea.setFrameShadow(48) # Sunken
-        self.w.vscrArea.setAlignment(Qt.AlignLeft|Qt.AlignTop)
-        self.w.vscrArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.w.vscrArea.setWidget(self.w.vachLb)
-        self.w.vscrArea.show()
     
     def closeEvent(self, ev):
         if self.shutdown: # state_write only on gv_quit?
             if self.dberr:
                 self.state_write()
         self.timer.stop()
-        ch_conn(self, 'tick')
+        ch_conn(self, 'tick') # hierwei use gaia insto parent
         if self.parent: # hierwei: parent is gnuvet mainwin, xy_decr sense?
             self.parent.xy_decr()
         # threading.Timer needs to be told
@@ -845,15 +857,14 @@ class Patient(QMainWindow):
         self.consid = self.row2data[self.row][0]
         res = querydb(
             self,
-            'select min(dt),max(dt)from prod{} where consid=%s'.format(
-                self.pid), (self.consid,))
+            'select min(dt),max(dt)from prods where prod_consid=%s',
+            (self.consid,))
         if res is None:  return # db error
         self.startdt = res[0][0]
         self.rundt   = res[0][1]
         res = querydb(
             self,
-            'select max(dt)from ch{} where consid=%s'.format(
-                self.pid), (self.consid,))
+            'select max(dt)from clinhists where ch_consid=%s', (self.consid,))
         if res is None:  return # db error
         if res[0][0] > self.rundt:
             self.rundt = res[0][0]
@@ -901,7 +912,8 @@ class Patient(QMainWindow):
 
     def dbdep_enable(self, yes=True):
         """En- or disable db dependent actions."""
-        for action in (self.editA, self.histA, self.mrgA, self.payA, self.trtA):
+        for action in (self.editA, self.histA, self.mrgA, self.payA,
+                       self.trtA):
             action.setEnabled(yes)
         self.dbA.setVisible(not yes)
         self.dbA.setEnabled(not yes)
@@ -980,32 +992,93 @@ class Patient(QMainWindow):
         for e in res:
             self.chronics.append(e[0])
 
-    def get_ptypes(self):
-        """Get ptypes -> type colour for htable."""
-        self.typecols = {}
+    def get_inst(self, consid, okey):
+        """Construct list to insert medication instructions into htable."""
+        inst = querydb(
+            self, 'select in_text from insts where in_prodid=%s', (okey,))
+        if inst is None:  return # db error
+        if not inst:  return # no entry
+        inst = inst[0][0]
+        self.w.htable.append_row(['', inst, '', '', '~', ''])
+        self.row2data.append((consid, okey, 0, self.lastdt))
+
+    def get_phones(self):
         res = querydb(
             self,
-            'select pt_name,pt_id from ptypes')
+            'select phone_opt,phone_num,phone_anno from phones '
+            'where phone_cid=%s order by phone_opt',
+            (self.cid,))
         if res is None:  return # db error
-        self.ptypes = {}
-        for e in res:
-            self.ptypes[e[0]] = e[1]
-        for e in res:
-            if e+'_col' in self.options:
-                self.typecols[e] = self.options[e+'_col']
-            else:
-                self.typecols[e] = 'black'
+        if not res or not res[0]:
+            self.w.phoneDd.addItem('n/a')
+            self.w.phoneDd.setEnabled(False)
+            return
+        addend = ''
+        if min([e[0] for e in res]) != max([e[0] for e in res]):
+            addend = ' (best) '
+        for i in xrange(len(res)): # hierwei, elide?
+            self.w.phoneDd.addItem(res[i][1] + addend + res[i][2])
+            if addend:
+                addend = ''
+        
+    def get_ptypes(self):
+        """Get ptypes -> type colour for htable."""
+        res = querydb(
+            self,
+            'select pt_col from ptypes order by pt_id')
+        if res is None:  return # db error
+        self.ptypes = [('')]
+        if 'usehistcolours' in self.options and self.options['usehistcolours']:
+            for e in res:
+                self.ptypes.append(e[0])
+        else:
+            for e in res:
+                self.ptypes.append('black')
 
-    def get_vats(self): # is this overkill?
+    def get_vac(self): # hierwei adapt 2 new tables (vdues)
+        """Check vaccinations of patient into vacLb."""
+        res = querydb(
+            self,
+            'select vt_type,vd_vdue from vdues,vtypes where '
+            'vd_type=vt_id and vd_pid=%s', (self.pid,))
+        if res is None:  return # db error
+        if not res:
+            self.w.vachLb.setText(self.tr('n/a'))
+            return
+        vaccs = {} # '
+        for e in res:
+            vaccs[e[0]] = e[1]
+        tmp = '<table border="0" cellpadding="2">'
+        today = date.today()
+        for e in sorted(vaccs.keys()):
+            tmp += '<tr><td colspan="2">{}<tr><td><td>{} '.format(
+                e, vaccs[e].strftime('%d.%m.%Y'))
+            if not self.rip:
+                if vaccs[e] > (today + timedelta(40)):
+                    tmp += self.tr('ok')
+                elif vaccs[e] >= today:
+                    tmp += '<font color="green">'+self.tr('due')+'</font>'
+                else:
+                    tmp += '<font color="red">'+self.tr('overdue')+'</font>'
+        tmp += '</table>'
+        self.w.vachLb.setText(tmp)
+        self.w.vachLb.adjustSize()
+        self.w.vscrArea = QScrollArea(self.w.centralwidget)
+        self.w.vscrArea.setGeometry(10, 210, 230, 81)
+        self.w.vscrArea.setFrameShape(6) # StyledPanel
+        self.w.vscrArea.setFrameShadow(48) # Sunken
+        self.w.vscrArea.setAlignment(Qt.AlignLeft|Qt.AlignTop)
+        self.w.vscrArea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.w.vscrArea.setWidget(self.w.vachLb)
+        self.w.vscrArea.show()
+
+    def get_vats(self):
         if not hasattr(self, 'vats'):
-            if hasattr(self.productw, 'vats'):
-                self.vats = self.productw.vats
-            else:
-                self.vats = querydb(
-                    self,
-                    'select vat_id,vat_name,vat_rate from vats '
-                    'where not vat_obs')
-                if self.vats is None:  return # db error
+            self.vats = querydb(
+                self,
+                'select vat_id,vat_name,vat_rate from vats '
+                'where not vat_obs')
+            if self.vats is None:  return # db error
             
     def gv_help(self, page=''):
         self.helpsig.emit(page)
@@ -1084,7 +1157,8 @@ class Patient(QMainWindow):
             self.w.nameLb.adjustSize()
             self.pat.append(r[0])
             nwidth = self.w.nameLb.width() - nwidth
-            self.w.warnLb.move(self.w.warnLb.pos().x()+nwidth,self.w.warnLb.y())
+            self.w.warnLb.move(
+                self.w.warnLb.pos().x()+nwidth,self.w.warnLb.y())
             self.w.ripLb.move(self.w.ripLb.pos().x()+nwidth,self.w.ripLb.y())
             self.pat.append('{}{}'.format(r[2], r[1] and ' Cross' or ''))
             self.w.breedLb.setText(self.pat[1])
@@ -1114,7 +1188,7 @@ class Patient(QMainWindow):
             self.cid = r[15]
             if self.cid == 1:
                 self.w.cnameLb.setText(self.tr('Owner unknown'))
-                sname = 'nn' # hierwei: sname ref'd before assignment
+                sname = 'nn' # hierwei: sname ref'd before assignment???
             else:
                 self.w.cnameLb.setText(' '.join([e for e in r[16:19] if e]))
                 sname = r[17]
@@ -1195,19 +1269,7 @@ class Patient(QMainWindow):
                 self.w.locLb.setEnabled(0)
                 self.togglelocA.setEnabled(0)
                 self.togglelocA.setVisible(0)
-            res = querydb(
-                self,
-                'select phone_opt,phone_num,phone_anno from phones '
-                'where phone_clid=%s order by phone_opt',
-                (self.cid,))
-            if res is None:  return # db error
-            addend = ''
-            if min([e[0] for e in res]) != max([e[0] for e in res]):
-                addend = ' (best) '
-            for i in xrange(len(res)): # hierwei, elide?
-                self.w.phoneDd.addItem(res[i][1] + addend + res[i][2])
-                if addend:
-                    addend = ''
+            self.get_phones()
             if ins:
                 res = querydb(
                     self,
@@ -1242,18 +1304,13 @@ class Patient(QMainWindow):
         # weight
         res = querydb(
             self,
-            "select tablename from pg_tables where tablename='weight%s'",
-            (self.pid,))
+            'select w_weight,w_dt,w_est from weights where w_pid=%s '
+            'order by w_dt desc limit 1', (self.pid,))
         if res is None:  return # db error
         if not res:
             self.w.weightPb.setText(self.tr('&weight: n/a'))
             self.pat.append('weight n/a')
         else:
-            res = querydb(
-                self,
-                'select weight,w_date,w_est from weight%s order by '
-                'w_date desc limit 1', (self.pid,))
-            if res is None:  return # db error
             res = res[0]
             cdate = res[1].date().strftime('%d.%m.%y')
             weight = res[0] # Decimal
@@ -1266,7 +1323,7 @@ class Patient(QMainWindow):
             self.w.weightPb.adjustSize()
             self.pat.append(str(weight) + ' kg')
         self.pat.append(sname)
-        self.ck_vac()
+        self.get_vac()
         if not self.prevdata:
             self.prevdata = self.ck_ch()
             if self.prevdata is None:  return # db error
@@ -1286,9 +1343,9 @@ class Patient(QMainWindow):
                 'create temporary table tc(consid int not null,okey int not '
                 'null default 0,dt timestamp not null,ptype int not null '
                 'default %s,txt varchar(1024)not null,count numeric(8,2)not '
-                "null,symp int,unit varchar(5)not null default '',staff "
-                'varchar(5),prid int not null default 0)',
-                (self.ptypes['hist'],))
+                "null default 0,symp int,unit varchar(5)not null default '',"
+                'staff varchar(5),prid int not null default 0)',
+                (2,))
             self.curs.execute(
                 'insert into tc(consid,okey,dt,ptype,txt,count,symp,staff,'
                 'prid,unit)select prod_consid,prod_id,prod_dt,pr_type,pr_name,'
@@ -1306,15 +1363,14 @@ class Patient(QMainWindow):
             return
         res = querydb(
             self,
-            'select dt,txt,count,unit,symp,staff,consid,okey,type,prid from '
+            'select dt,txt,count,unit,symp,staff,consid,okey,ptype,prid from '
             'tc order by dt,ptype')
         if res is None:  return # db error
         # 0 dt 1 txt 2 count 3 u 4 symp 5 staff 6 consid 7 okey 8 type 9 prid
-        for e in res: # hierwei
+        for e in res:
             self.addch_row(e)
-            ##if self.dberr:  return ?
             if e[9]: # we might have instructions, too
-                self.addch_inst(e[6], e[7])
+                self.get_inst(e[6], e[7])
                 if self.dberr:  return
         self.setcolw()
         self.w.htable.align_data(0, 'r')
@@ -1323,37 +1379,15 @@ class Patient(QMainWindow):
         ch_conn(self, 'selch', self.w.htable.rowchanged, self.trackitem)
         self.w.htable.rightclicked.connect(self.rclick)
 
-    def payment(self): # hierwei: currently unused, move into client
-        if not hasattr(self, 'payment'):
-            import payment
-        self.paym = payment.Payment(self, self.db, self.options,
-                                    self.cid, self.pid, self.staffid)
-        self.paym.move(self.x()+50, self.y()+40)
-        self.paym.show()
-        # put here from book_cons where it made no sense:
-        invno = querydb(self,'select max(inv_no)from invoices')
-        if invno is None:  return # db error
-        ninvno = self.startdt.strftime('%Y%m%d0001')
-        if ninvno > invno:
-            invno = ninvno
-        else:
-            invno += 1
-        self.invno_id = querydb(
-            self,
-            'insert into invoices(inv_no)values(%s)returning invoice_id',
-            (invno,))
-        if self.invno_id is None:  return # db error
-        self.invno_id = self.invno_id[0][0]
-
     def pb_enable(self, enable=True):
         for e in (self.w.addchPb, self.w.addconsPb, self.w.addLe):
             e.setEnabled(enable)
         
     def rcdel(self):
-        print('rcdel')
+        print('rcdel nyi')
         
     def rcedit(self):
-        print('rcedit')
+        print('rcedit nyi')
         
     def rclick(self, pos):
         """Popup edit menu for right-clicked line."""
@@ -1388,16 +1422,6 @@ class Patient(QMainWindow):
         self.w.htable.set_colwidth(4, 55)  # symp
         self.w.htable.set_colwidth(5, 50)  # staff
 
-    ## def set_options(self, options={}):
-    ##     """Update to new setting of options.""" # currently unused
-    ##     self.options = options
-    ##     ## for entry in options.keys():
-    ##     ##     setattr(self, entry, options[entry])
-    ##     if 'autocon' in options:
-    ##         self.consid = not self.options['autocon']
-    ##     else:
-    ##         self.consid = True
-
     def toggleins(self):
         """Toggle insurance view."""
         if self.ins_osize == self.w.insLb.size():
@@ -1425,7 +1449,7 @@ class Patient(QMainWindow):
         self.row = row
 
     def update_balance(self, pr, count, vat):
-        """Add price to balanceLbs.""" # maybe proper vars insto .text()?
+        """Add price to balanceLbs."""
         addend = money(gprice(pr, vat), count)
         self.w.pbalanceLb.setText(
             str(Decimal(str(self.w.pbalanceLb.text())) + addend))

@@ -14,14 +14,17 @@
 
 --ok create table weight%s(w_id serial primary key,w_est boolean not null default FALSE, w_date timestamp not null default current_timestamp,weight numeric(7,3)not null,w_staff integer references staff not null) -- weight =
 
---ok create temporary table tc{}(consid integer not null,okey integer not null default 0,dt timestamp not null,type ptype not null default 'hst',txt varchar(1024)not null,count numeric(8,2)not null default 0,symp integer,unit varchar(5)not null default '',staff varchar(5),seq smallint not null,prid integer not null default 0) -- patient =
+create temporary table tc{}(consid integer not null,okey integer not null default 0,dt timestamp not null,type ptype not null default 'hst',txt varchar(1024)not null,count numeric(8,2)not null default 0,symp integer,unit varchar(5)not null default '',staff varchar(5),seq smallint not null,prid integer not null default 0) -- patient =
 
 delete from appointments where app_id=%s returning app_id -- appoint =
-delete from weight%s where w_date=%s and weight=%s -- weight =
+--delete from weight%s where w_date=%s and weight=%s -- weight =
+delete from weights where w_pid=%s and w_date=%s and weight=%s
 
-insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_cons =
-insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_prod =
-insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_vac =
+--hierwei
+--insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_cons =
+insert into accs(acc_cid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id
+--insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_prod = dto redundant?
+--insert into acc{}(acc_pid,acc_prid,acc_npr,acc_vat)values(%s,%s,%s,%s)returning acc_id -- patient.book_vac = dto redundant?
 
 insert into addresses(housen,street,village,city,region,postcode)values(%s,%s,%s,%s,%s,%s)returning addr_id -- saecli =
 
@@ -217,14 +220,13 @@ select tablename from pg_tables where tablename='acc{}' -- patient X -> saecli
 select tablename from pg_tables where tablename='acc{}' -- saecli
 select tablename from pg_tables where tablename='ch{}' -- patient
 select tablename from pg_tables where tablename='e{}' -- patient M -> saecli
-select tablename from pg_tables where tablename='inst{}' -- patient =
-select tablename from pg_tables where tablename='inst{}' -- patient =
 select tablename from pg_tables where tablename='inv{}' -- patient M -> client
 select tablename from pg_tables where tablename='prod{}' -- patient M -> saecli
 select tablename from pg_tables where tablename='prod{}' -- patient M -> saecli
 select tablename from pg_tables where tablename='weight%s' -- patient =
 
-select text from inst{} where prodid=%s -- patient =
+--select text from inst{} where prodid=%s -- patient =
+select in_text from insts where in_prodid=%s -- patient
 
 select u_id,u_name,u_pl,u_short from units -- products =
 select u_id,u_name,u_pl,u_short,u_abbr from units -- patient =

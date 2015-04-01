@@ -54,7 +54,8 @@ create table markups(
 -- product type: med other serv cons hist good food
 create table ptypes(
  pt_id serial primary key,
- pt_name varchar(20) not null,
+ pt_name varchar(10) not null,
+ pt_col varchar(20) not null,
  pt_markup int not null default 1 references markups);
 
 -- create type ptype as enum('con','hst','med','vac','srv','god','fod','oth');
@@ -288,38 +289,34 @@ create table products(
  pr_id serial primary key,
  pr_name varchar(80) not null,
  pr_short varchar(10) not null,
--- pr_type int not null default 1 references ptypes, -- srv, med, good etc.
  pr_type int not null default 1 references ptypes,
  pr_pprice numeric(8,2) not null default 0.00, -- net purchase price
  pr_nprice numeric(8,2) not null, -- net sale price
- pr_from date not null default '2010-01-01',
+ pr_since date not null default '2010-01-01',
  pr_vat int default 1 references vats,
  pr_perm boolean not null default FALSE, -- 0 OTC,  1 POM
  pr_u int not null references units,
+ pr_limit int not null default 0,
 -- pr_ingr int references ingredients, -- bitmask? separate table! if at all
  pr_instr boolean not null default TRUE -- ask for instructions
 -- pr_upordu numeric(8,4), -- for assistance in price calc -- whatsthis?
 );
 
-create table batchnos( -- how should that work?
- chb_id serial primary key,
- chb_prid int not null references products,
- chb_val varchar(30) not null);
+create table stocks(
+ st_id serial primary key,
+ st_prid int not null references products,
+ st_batch varchar(30) not null,
+ st_num numeric(9,2) not null);
 
 /* create table barcodes(
  bcode_id serial primary key,
  bcode_prid int references products;
  bcode_val int);
 
-create table stocks(
- st_id serial primary key,
- st_prid int not null references products,
- st_num numeric(9,2) not null);
-
-create table limits(
- l_id serial primary key,
- l_prid int not null references products,
- l_val numeric(9,2) not null);
+create table batchnos( -- how should that work?
+ chb_id serial primary key,
+ chb_prid int not null references products,
+ chb_val varchar(30) not null);
 
 create table pr_supplier(
  prid int not null references products,
@@ -408,7 +405,7 @@ create table appointments(
  app_dur interval not null default '0:00',
  app_status char not null default 'o');
 
-create table events(e_id serial primary key,e_pid int not null references patients);
+create table events(e_id serial primary key,e_pid int references patients);
 
 create table prods(
  prod_id serial primary key,
